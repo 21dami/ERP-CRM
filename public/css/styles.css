@@ -270,7 +270,7 @@ tbody tr:hover { background: var(--gray-50); }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--gray-700); font-size: 14px; }
 .form-group input, .form-group select, .form-group textarea {
-  width: 100%; padding: 10px 12px; border: 1px solid var(--gray-300);
+  width: 100%; padding: 10px 30px; border: 1px solid var(--gray-300);
   border-radius: var(--border-radius); font-size: 14px; transition: var(--transition);
   font-family: inherit;
 }
