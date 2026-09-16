@@ -34,7 +34,7 @@ async function loadProducts() {
     tbody.innerHTML = result.data.map(p => `
       <tr>
         <td><code>${p.sku}</code></td><td><strong>${p.name}</strong></td><td>${p.category || '-'}</td><td>${formatCurrency(p.unit_price)}</td><td>${formatCurrency(p.cost_price)}</td>
-        <td><span style="color:${p.stock_quantity <= p.min_stock ? 'var(--danger)' : 'var(--gray-800)'};font-weight:600">${p.stock_quantity}</span></td><td>${statusBadge(p.status)}</td>
+        <td><span style="color:${p.stock_quantity <= p.min_stock ? 'var(--danger)' : 'var(--text)'};font-weight:600">${p.stock_quantity}</span></td><td>${statusBadge(p.status)}</td>
         <td><button class="btn-icon" onclick="window.appEditProduct(${p.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteProduct(${p.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 

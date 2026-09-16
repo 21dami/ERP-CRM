@@ -33,7 +33,7 @@ async function loadInventory() {
       const isLow = i.quantity <= i.min_stock;
       return `<tr>
         <td><code>${i.sku}</code></td><td><strong>${i.product_name}</strong></td>
-        <td style="font-weight:600;color:${isLow ? 'var(--danger)' : 'var(--gray-800)'}">${i.quantity}</td>
+        <td style="font-weight:600;color:${isLow ? 'var(--danger)' : 'var(--text)'}">${i.quantity}</td>
         <td>${i.reserved || 0}</td>
         <td>${available}</td><td>${i.min_stock}</td><td>${i.warehouse_location || '-'}</td><td>${formatDate(i.last_restocked)}</td>
         <td>${isLow ? '<span class="badge badge-danger">Low Stock</span>' : '<span class="badge badge-success">OK</span>'}</td>

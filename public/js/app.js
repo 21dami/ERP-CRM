@@ -31,12 +31,34 @@ const pageTitles = {
 let currentUser = null;
 let currentPage = 'dashboard';
 
+function loadTheme() {
+  const saved = localStorage.getItem('erp_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  updateThemeIcon(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('erp_theme', next);
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  }
+}
+
 class App {
   constructor() {
     this.init();
   }
 
   async init() {
+    loadTheme();
     this.bindEvents();
     const token = localStorage.getItem('erp_token');
     const userData = localStorage.getItem('erp_user');
@@ -81,6 +103,8 @@ class App {
     document.getElementById('mobile-menu-btn').onclick = () => {
       document.getElementById('sidebar').classList.toggle('open');
     };
+
+    document.getElementById('theme-toggle').onclick = () => toggleTheme();
 
     document.addEventListener('click', (e) => {
       if (window.innerWidth <= 768 && !e.target.closest('.sidebar') && !e.target.closest('#mobile-menu-btn')) {

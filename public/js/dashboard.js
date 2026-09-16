@@ -156,8 +156,8 @@ function renderOrdersByStatus(statuses) {
   if (!statuses.length) { el.innerHTML = '<div class="empty-state"><p>No order data</p></div>'; return; }
   const total = statuses.reduce((s, r) => s + r.count, 0);
   el.innerHTML = statuses.map(s => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
-      <div>${statusBadge(s.status)}<span style="margin-left:8px;color:var(--gray-600);font-size:14px">${s.count} orders</span></div>
-      <div style="font-weight:600;color:var(--gray-700)">${total ? Math.round(s.count / total * 100) : 0}%</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light)">
+      <div>${statusBadge(s.status)}<span style="margin-left:8px;color:var(--text-secondary);font-size:14px">${s.count} orders</span></div>
+      <div style="font-weight:600;color:var(--text)">${total ? Math.round(s.count / total * 100) : 0}%</div>
     </div>`).join('');
 }

@@ -59,7 +59,7 @@ async function openOrderModal() {
         <div class="form-group"><label>Due Date</label><input type="date" name="due_date"></div>
       </div>
       <div class="form-group"><label>Shipping Address</label><input name="shipping_address"></div>
-      <h4 style="margin:16px 0 12px;color:var(--gray-800)">Order Items</h4>
+      <h4 style="margin:16px 0 12px;color:var(--text)">Order Items</h4>
       <div id="order-items-container"></div>
       <button type="button" class="btn btn-sm btn-outline" id="add-order-item" style="margin-top:8px"><i class="fas fa-plus"></i> Add Item</button>
       <div class="form-row" style="margin-top:16px">
