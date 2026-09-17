@@ -7,6 +7,7 @@ import { renderOrders } from './orders.js';
 import { renderInventory } from './inventory.js';
 import { renderSales } from './sales.js';
 import { renderEmployees } from './employees.js';
+import { renderUsers } from './users.js';
 
 const pageRenderers = {
   dashboard: renderDashboard,
@@ -16,6 +17,7 @@ const pageRenderers = {
   inventory: renderInventory,
   sales: renderSales,
   employees: renderEmployees,
+  users: renderUsers,
 };
 
 const pageTitles = {
@@ -26,10 +28,12 @@ const pageTitles = {
   inventory: 'Inventory',
   sales: 'Sales',
   employees: 'Employees',
+  users: 'Users',
 };
 
 let currentUser = null;
 let currentPage = 'dashboard';
+let isImpersonating = false;
 
 function loadTheme() {
   const saved = localStorage.getItem('erp_theme') || 'light';
@@ -69,6 +73,13 @@ class App {
         const res = await api.getMe();
         currentUser = res.user;
         localStorage.setItem('erp_user', JSON.stringify(currentUser));
+
+        const impersonatorData = localStorage.getItem('erp_impersonator');
+        if (impersonatorData) {
+          isImpersonating = true;
+          this.showImpersonationBanner(currentUser);
+        }
+
         this.showApp();
       } catch {
         this.showLogin();
@@ -106,6 +117,15 @@ class App {
 
     document.getElementById('theme-toggle').onclick = () => toggleTheme();
 
+    document.getElementById('btn-exit-impersonation').onclick = () => this.exitImpersonation();
+
+    window.addEventListener('impersonation-start', (e) => {
+      isImpersonating = true;
+      currentUser = e.detail.impersonated;
+      this.showImpersonationBanner(e.detail.impersonated);
+      this.showApp();
+    });
+
     document.addEventListener('click', (e) => {
       if (window.innerWidth <= 768 && !e.target.closest('.sidebar') && !e.target.closest('#mobile-menu-btn')) {
         document.getElementById('sidebar').classList.remove('open');
@@ -135,8 +155,46 @@ class App {
   handleLogout() {
     api.setToken(null);
     currentUser = null;
+    isImpersonating = false;
     localStorage.removeItem('erp_user');
+    localStorage.removeItem('erp_impersonator');
+    this.hideImpersonationBanner();
     this.showLogin();
+  }
+
+  showImpersonationBanner(user) {
+    const banner = document.getElementById('impersonation-banner');
+    document.getElementById('impersonated-name').textContent = `${user.full_name} (${user.role})`;
+    banner.style.display = 'flex';
+  }
+
+  hideImpersonationBanner() {
+    document.getElementById('impersonation-banner').style.display = 'none';
+  }
+
+  exitImpersonation() {
+    const impersonator = JSON.parse(localStorage.getItem('erp_impersonator'));
+    if (!impersonator) return;
+
+    const originalToken = impersonator._token;
+    localStorage.removeItem('erp_impersonator');
+    localStorage.removeItem('erp_user');
+    isImpersonating = false;
+    this.hideImpersonationBanner();
+
+    api.setToken(originalToken);
+    this.showLogin();
+
+    setTimeout(() => {
+      api.getMe().then(res => {
+        currentUser = res.user;
+        localStorage.setItem('erp_user', JSON.stringify(currentUser));
+        this.showApp();
+      }).catch(() => {
+        localStorage.removeItem('erp_user');
+        this.showLogin();
+      });
+    }, 100);
   }
 
   showLogin() {

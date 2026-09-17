@@ -50,6 +50,28 @@ const AuthController = {
     res.json({ user: req.user });
   },
 
+  impersonate(req, res) {
+    try {
+      const targetUser = db.prepare('SELECT id, username, full_name, email, role, status FROM users WHERE id = ?').get(req.params.userId);
+      if (!targetUser) return res.status(404).json({ error: 'User not found' });
+      if (targetUser.status !== 'active') return res.status(400).json({ error: 'Cannot impersonate an inactive user' });
+
+      const token = jwt.sign(
+        { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        token,
+        user: targetUser,
+        impersonator: req.user
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to impersonate user' });
+    }
+  },
+
   async changePassword(req, res) {
     try {
       const { current_password, new_password } = req.body;

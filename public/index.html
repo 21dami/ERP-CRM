@@ -27,9 +27,11 @@
         <div id="login-error" class="error-msg" style="display:none"></div>
         <button type="submit" class="btn btn-primary btn-full"><i class="fas fa-sign-in-alt"></i> Sign In</button>
       </form>
+      <!-- 
       <div class="login-footer">
         <p>Demo: admin / admin123</p>
       </div>
+      -->
     </div>
   </div>
 
@@ -48,6 +50,7 @@
         <a href="#" class="nav-item" data-page="inventory"><i class="fas fa-warehouse"></i><span>Inventory</span></a>
         <a href="#" class="nav-item" data-page="sales"><i class="fas fa-dollar-sign"></i><span>Sales</span></a>
         <a href="#" class="nav-item" data-page="employees"><i class="fas fa-user-tie"></i><span>Employees</span></a>
+        <a href="#" class="nav-item" data-page="users"><i class="fas fa-user-cog"></i><span>Users</span></a>
       </nav>
       <div class="sidebar-footer">
         <div class="user-info" id="user-info">
@@ -62,6 +65,11 @@
     </aside>
 
     <main class="main-content" id="main-content">
+      <div id="impersonation-banner" class="impersonation-banner" style="display:none">
+        <i class="fas fa-mask"></i>
+        <span>Impersonating <strong id="impersonated-name"></strong></span>
+        <button class="btn btn-sm btn-impersonate-exit" id="btn-exit-impersonation"><i class="fas fa-sign-out-alt"></i> Exit Impersonation</button>
+      </div>
       <header class="top-bar">
         <button class="mobile-menu-btn" id="mobile-menu-btn"><i class="fas fa-bars"></i></button>
         <h2 id="page-title">Dashboard</h2>

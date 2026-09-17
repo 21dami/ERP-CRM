@@ -108,6 +108,14 @@ class ApiClient {
 
   // Dashboard
   getDashboard() { return this.get('/dashboard'); }
+
+  // Users
+  getUsers(params) { return this.get('/users', params); }
+  getUser(id) { return this.get(`/users/${id}`); }
+  createUser(data) { return this.post('/users', data); }
+  updateUser(id, data) { return this.put(`/users/${id}`, data); }
+  deleteUser(id) { return this.delete(`/users/${id}`); }
+  impersonateUser(userId) { return this.post(`/auth/impersonate/${userId}`); }
 }
 
 export const api = new ApiClient();

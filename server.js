@@ -52,6 +52,7 @@ async function startServer() {
   const { default: employeeRoutes } = await import('./routes/employees.js');
   const { default: salesRoutes } = await import('./routes/sales.js');
   const { default: dashboardRoutes } = await import('./routes/dashboard.js');
+  const { default: userRoutes } = await import('./routes/users.js');
 
   app.use('/api/auth', authRoutes);
   app.use('/api/clients', clientRoutes);
@@ -61,6 +62,7 @@ async function startServer() {
   app.use('/api/employees', employeeRoutes);
   app.use('/api/sales', salesRoutes);
   app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/users', userRoutes);
 
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {

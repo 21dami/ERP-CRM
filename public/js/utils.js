@@ -65,7 +65,7 @@ export function buildPagination(current, total, onPageChange) {
 
 export function getRolePermissions(role) {
   const perms = {
-    admin: ['dashboard','clients','products','orders','inventory','sales','employees'],
+    admin: ['dashboard','clients','products','orders','inventory','sales','employees','users'],
     sales: ['dashboard','clients','products','orders','sales'],
     hr: ['dashboard','employees'],
     accounting: ['dashboard','sales','orders'],

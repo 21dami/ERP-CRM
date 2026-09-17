@@ -91,6 +91,71 @@ const seed = async () => {
     } catch(e) {}
   }
 
+  const orders = [
+    ['ORD-2024-001', 1, '2024-01-15', '2024-01-20', 'delivered', 2659.96, 226.10, 0, 2886.06, 'paid', 'cash', '123 Main St, New York, NY 10001', 'Bulk order for office setup', 2],
+    ['ORD-2024-002', 2, '2024-02-20', '2024-02-28', 'shipped', 969.91, 82.44, 0, 1052.35, 'paid', 'card', '456 Oak Ave, San Francisco, CA 94102', 'Equipment for new office', 2],
+    ['ORD-2024-003', 3, '2024-03-10', '2024-03-20', 'processing', 1399.96, 119.00, 0, 1518.96, 'partial', 'bank_transfer', '789 Pine Rd, Chicago, IL 60601', 'Chair upgrade for team', 6],
+    ['ORD-2024-004', 4, '2024-03-25', '2024-04-05', 'confirmed', 999.97, 85.00, 50.00, 1034.97, 'unpaid', null, '321 Elm St, Houston, TX 77001', 'Ergonomic workspace setup', 2],
+    ['ORD-2024-005', 5, '2024-04-01', '2024-04-10', 'pending', 249.90, 21.24, 0, 271.14, 'unpaid', null, '654 Maple Dr, Phoenix, AZ 85001', null, 6],
+    ['ORD-2024-006', 6, '2024-01-28', '2024-02-05', 'delivered', 979.92, 83.29, 0, 1063.21, 'paid', 'cash', '987 Cedar Ln, Seattle, WA 98101', 'Printer and webcam order', 2],
+  ];
+
+  for (const o of orders) {
+    try {
+      db.prepare("INSERT OR IGNORE INTO orders (order_number, client_id, order_date, due_date, status, subtotal, tax_amount, discount, total, payment_status, payment_method, shipping_address, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(...o);
+    } catch(e) {}
+  }
+
+  const orderItems = [
+    [1, 1, 2, 1299.99, 8.5, 0, 2599.98],
+    [1, 2, 2, 29.99, 8.5, 0, 59.98],
+    [2, 4, 1, 449.99, 8.5, 0, 449.99],
+    [2, 5, 3, 89.99, 8.5, 0, 269.97],
+    [2, 3, 5, 49.99, 8.5, 0, 249.95],
+    [3, 8, 4, 349.99, 8.5, 0, 1399.96],
+    [4, 9, 1, 599.99, 8.5, 0, 599.99],
+    [4, 10, 2, 199.99, 8.5, 0, 399.98],
+    [5, 11, 10, 24.99, 8.5, 0, 249.90],
+    [6, 12, 2, 249.99, 8.5, 0, 499.98],
+    [6, 6, 6, 79.99, 8.5, 0, 479.94],
+  ];
+
+  for (const oi of orderItems) {
+    try {
+      db.prepare('INSERT OR IGNORE INTO order_items (order_id, product_id, quantity, unit_price, tax_rate, discount, total) VALUES (?, ?, ?, ?, ?, ?, ?)').run(...oi);
+    } catch(e) {}
+  }
+
+  const salesData = [
+    ['SAL-2024-001', 1, 1, '2024-01-20', 2659.96, 226.10, 0, 2886.06, 'cash', 'paid', 'Payment received on delivery', 2],
+    ['SAL-2024-002', 6, 6, '2024-02-05', 979.92, 83.29, 0, 1063.21, 'card', 'paid', 'Card payment processed', 2],
+    ['SAL-2024-003', null, 7, '2024-03-15', 179.95, 15.30, 0, 195.25, 'cash', 'paid', 'Walk-in purchase', 2],
+    ['SAL-2024-004', null, 8, '2024-04-01', 1749.98, 148.75, 0, 1898.73, 'bank_transfer', 'partial', 'Partial payment received, remainder due in 30 days', 6],
+  ];
+
+  for (const s of salesData) {
+    try {
+      db.prepare("INSERT OR IGNORE INTO sales (sale_number, order_id, client_id, sale_date, subtotal, tax_amount, discount, total, payment_method, payment_status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(...s);
+    } catch(e) {}
+  }
+
+  const saleItems = [
+    [1, 1, 2, 1299.99, 8.5, 0, 2599.98],
+    [1, 2, 2, 29.99, 8.5, 0, 59.98],
+    [2, 12, 2, 249.99, 8.5, 0, 499.98],
+    [2, 6, 6, 79.99, 8.5, 0, 479.94],
+    [3, 7, 3, 39.99, 8.5, 0, 119.97],
+    [3, 2, 2, 29.99, 8.5, 0, 59.98],
+    [4, 1, 1, 1299.99, 8.5, 0, 1299.99],
+    [4, 4, 1, 449.99, 8.5, 0, 449.99],
+  ];
+
+  for (const si of saleItems) {
+    try {
+      db.prepare('INSERT OR IGNORE INTO sale_items (sale_id, product_id, quantity, unit_price, tax_rate, discount, total) VALUES (?, ?, ?, ?, ?, ?, ?)').run(...si);
+    } catch(e) {}
+  }
+
   saveDatabase();
 
   // Mark initial migration as applied if using migrations
