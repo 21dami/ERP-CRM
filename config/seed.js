@@ -92,12 +92,12 @@ const seed = async () => {
   }
 
   const orders = [
-    ['ORD-2024-001', 1, '2024-01-15', '2024-01-20', 'delivered', 2659.96, 226.10, 0, 2886.06, 'paid', 'cash', '123 Main St, New York, NY 10001', 'Bulk order for office setup', 2],
-    ['ORD-2024-002', 2, '2024-02-20', '2024-02-28', 'shipped', 969.91, 82.44, 0, 1052.35, 'paid', 'card', '456 Oak Ave, San Francisco, CA 94102', 'Equipment for new office', 2],
-    ['ORD-2024-003', 3, '2024-03-10', '2024-03-20', 'processing', 1399.96, 119.00, 0, 1518.96, 'partial', 'bank_transfer', '789 Pine Rd, Chicago, IL 60601', 'Chair upgrade for team', 6],
-    ['ORD-2024-004', 4, '2024-03-25', '2024-04-05', 'confirmed', 999.97, 85.00, 50.00, 1034.97, 'unpaid', null, '321 Elm St, Houston, TX 77001', 'Ergonomic workspace setup', 2],
-    ['ORD-2024-005', 5, '2024-04-01', '2024-04-10', 'pending', 249.90, 21.24, 0, 271.14, 'unpaid', null, '654 Maple Dr, Phoenix, AZ 85001', null, 6],
-    ['ORD-2024-006', 6, '2024-01-28', '2024-02-05', 'delivered', 979.92, 83.29, 0, 1063.21, 'paid', 'cash', '987 Cedar Ln, Seattle, WA 98101', 'Printer and webcam order', 2],
+    ['ORD-2026-001', 1, '2026-01-12', '2026-01-18', 'delivered', 2659.96, 226.10, 0, 2886.06, 'paid', 'cash', '123 Main St, New York, NY 10001', 'Bulk order for office setup', 2],
+    ['ORD-2026-002', 2, '2026-02-08', '2026-02-15', 'shipped', 969.91, 82.44, 0, 1052.35, 'paid', 'card', '456 Oak Ave, San Francisco, CA 94102', 'Equipment for new office', 2],
+    ['ORD-2026-003', 3, '2026-03-22', '2026-04-01', 'processing', 1399.96, 119.00, 0, 1518.96, 'partial', 'bank_transfer', '789 Pine Rd, Chicago, IL 60601', 'Chair upgrade for team', 6],
+    ['ORD-2026-004', 4, '2026-05-10', '2026-05-20', 'confirmed', 999.97, 85.00, 50.00, 1034.97, 'unpaid', null, '321 Elm St, Houston, TX 77001', 'Ergonomic workspace setup', 2],
+    ['ORD-2026-005', 5, '2026-07-03', '2026-07-12', 'pending', 249.90, 21.24, 0, 271.14, 'unpaid', null, '654 Maple Dr, Phoenix, AZ 85001', null, 6],
+    ['ORD-2026-006', 6, '2026-08-18', '2026-08-25', 'delivered', 979.92, 83.29, 0, 1063.21, 'paid', 'cash', '987 Cedar Ln, Seattle, WA 98101', 'Printer and webcam order', 2],
   ];
 
   for (const o of orders) {
@@ -127,10 +127,10 @@ const seed = async () => {
   }
 
   const salesData = [
-    ['SAL-2024-001', 1, 1, '2024-01-20', 2659.96, 226.10, 0, 2886.06, 'cash', 'paid', 'Payment received on delivery', 2],
-    ['SAL-2024-002', 6, 6, '2024-02-05', 979.92, 83.29, 0, 1063.21, 'card', 'paid', 'Card payment processed', 2],
-    ['SAL-2024-003', null, 7, '2024-03-15', 179.95, 15.30, 0, 195.25, 'cash', 'paid', 'Walk-in purchase', 2],
-    ['SAL-2024-004', null, 8, '2024-04-01', 1749.98, 148.75, 0, 1898.73, 'bank_transfer', 'partial', 'Partial payment received, remainder due in 30 days', 6],
+    ['SAL-2026-001', 1, 1, '2026-01-18', 2659.96, 226.10, 0, 2886.06, 'cash', 'paid', 'Payment received on delivery', 2],
+    ['SAL-2026-002', 6, 6, '2026-08-25', 979.92, 83.29, 0, 1063.21, 'card', 'paid', 'Card payment processed', 2],
+    ['SAL-2026-003', null, 7, '2026-06-10', 179.95, 15.30, 0, 195.25, 'cash', 'paid', 'Walk-in purchase', 2],
+    ['SAL-2026-004', null, 8, '2026-09-05', 1749.98, 148.75, 0, 1898.73, 'bank_transfer', 'partial', 'Partial payment received, remainder due in 30 days', 6],
   ];
 
   for (const s of salesData) {

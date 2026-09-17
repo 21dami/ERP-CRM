@@ -1,5 +1,5 @@
 import api from './api.js';
-import { showToast, getRolePermissions, canAccess } from './utils.js';
+import { showToast, getRolePermissions, canAccess, getLocale, setLocale, formatDateShort } from './utils.js';
 import { renderDashboard } from './dashboard.js';
 import { renderClients } from './clients.js';
 import { renderProducts } from './products.js';
@@ -56,6 +56,13 @@ function updateThemeIcon(theme) {
   }
 }
 
+function loadLocale() {
+  const select = document.getElementById('locale-select');
+  if (select) {
+    select.value = getLocale();
+  }
+}
+
 class App {
   constructor() {
     this.init();
@@ -63,6 +70,7 @@ class App {
 
   async init() {
     loadTheme();
+    loadLocale();
     this.bindEvents();
     const token = localStorage.getItem('erp_token');
     const userData = localStorage.getItem('erp_user');
@@ -116,6 +124,12 @@ class App {
     };
 
     document.getElementById('theme-toggle').onclick = () => toggleTheme();
+
+    document.getElementById('locale-select').onchange = (e) => {
+      setLocale(e.target.value);
+      document.getElementById('current-date').textContent = formatDateShort(new Date());
+      this.navigateTo(currentPage);
+    };
 
     document.getElementById('btn-exit-impersonation').onclick = () => this.exitImpersonation();
 
@@ -209,7 +223,7 @@ class App {
     document.getElementById('app').style.display = 'flex';
     document.getElementById('user-name').textContent = currentUser.full_name;
     document.getElementById('user-role').textContent = currentUser.role;
-    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('current-date').textContent = formatDateShort(new Date());
 
     const perms = getRolePermissions(currentUser.role);
     document.querySelectorAll('.nav-item').forEach(item => {

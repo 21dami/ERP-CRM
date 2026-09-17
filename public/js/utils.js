@@ -20,18 +20,48 @@ export function hideModal() {
   document.getElementById('modal-overlay').style.display = 'none';
 }
 
+export function getLocale() {
+  return localStorage.getItem('erp_locale') || 'us';
+}
+
+export function setLocale(locale) {
+  localStorage.setItem('erp_locale', locale);
+}
+
+const localeConfig = {
+  us: { currency: 'USD', lang: 'en-US', dateFormat: { year: 'numeric', month: 'short', day: 'numeric' } },
+  eu: { currency: 'EUR', lang: 'en-GB', dateFormat: { year: 'numeric', month: '2-digit', day: '2-digit' } }
+};
+
+export function getCurrency() {
+  return localeConfig[getLocale()].currency;
+}
+
 export function formatCurrency(val) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
+  const cfg = localeConfig[getLocale()];
+  if (cfg.currency === 'EUR') {
+    const num = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
+    return num + ' \u20AC';
+  }
+  return new Intl.NumberFormat(cfg.lang, { style: 'currency', currency: cfg.currency }).format(val || 0);
 }
 
 export function formatDate(date) {
   if (!date) return '-';
-  return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const cfg = localeConfig[getLocale()];
+  return new Date(date).toLocaleDateString(cfg.lang, cfg.dateFormat);
 }
 
 export function formatDateTime(date) {
   if (!date) return '-';
-  return new Date(date).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const cfg = localeConfig[getLocale()];
+  return new Date(date).toLocaleString(cfg.lang, { ...cfg.dateFormat, hour: '2-digit', minute: '2-digit' });
+}
+
+export function formatDateShort(date) {
+  if (!date) return '-';
+  const cfg = localeConfig[getLocale()];
+  return new Date(date).toLocaleDateString(cfg.lang, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export function statusBadge(status) {

@@ -382,15 +382,134 @@ tbody tr:hover { background: var(--hover-bg); }
 
 /* Charts */
 .chart-container { padding: 20px; min-height: 300px; }
-.chart-bar-group { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 0 10px; }
-.chart-bar-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
-.chart-bar {
-  width: 100%; max-width: 50px; background: var(--primary); border-radius: 4px 4px 0 0;
-  transition: var(--transition); cursor: pointer; position: relative;
+
+.revenue-chart { padding: 0; }
+
+.revenue-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 220px;
+  padding: 0 4px;
 }
-.chart-bar:hover { background: var(--primary-dark); }
-.chart-bar-label { font-size: 11px; color: var(--text-secondary); }
-.chart-bar-value { font-size: 11px; color: var(--text); font-weight: 600; }
+
+.revenue-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 0;
+}
+
+.revenue-bar-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  padding-bottom: 6px;
+  letter-spacing: -0.2px;
+}
+
+.revenue-bar-col:hover .revenue-bar-value {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.revenue-bar {
+  width: 100%;
+  max-width: 44px;
+  border-radius: 8px;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  position: relative;
+  min-height: 4px;
+}
+
+.revenue-bar-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  opacity: 0.9;
+  transition: all 0.25s ease;
+}
+
+.revenue-bar:hover .revenue-bar-inner {
+  opacity: 1;
+  filter: brightness(1.08);
+}
+
+.revenue-bar-month {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding-top: 12px;
+  letter-spacing: 0.2px;
+  transition: color 0.2s ease;
+}
+
+.revenue-bar-col:hover .revenue-bar-month {
+  color: var(--text-secondary);
+}
+
+.revenue-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 4px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-light);
+}
+
+.revenue-summary-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.revenue-summary-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+
+.revenue-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  color: var(--text-muted);
+  gap: 8px;
+}
+
+.revenue-empty i {
+  font-size: 32px;
+  opacity: 0.4;
+}
+
+.revenue-empty span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.revenue-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  color: var(--text-muted);
+  gap: 10px;
+  font-size: 14px;
+}
 
 /* List items */
 .list-item {
@@ -441,6 +560,17 @@ tbody tr:hover { background: var(--hover-bg); }
   font-size: 15px; transition: var(--transition); display: flex; align-items: center; justify-content: center;
 }
 .theme-toggle:hover { background: var(--hover-bg); color: var(--text); border-color: var(--input-border); }
+
+/* Currency Select */
+.currency-select {
+  padding: 7px 32px 7px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--text); background: var(--surface-alt);
+  cursor: pointer; appearance: none; transition: all 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2371717a' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.currency-select:hover { border-color: var(--primary); }
+.currency-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
 
 /* Impersonation Banner */
 .impersonation-banner {
