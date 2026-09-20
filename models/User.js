@@ -1,7 +1,7 @@
 import db from '../config/database.js';
 
 const UserModel = {
-  findAll({ search, status, role, page = 1, limit = 20 } = {}) {
+  findAll({ search, status, role, page = 1, limit = 20, sort, order } = {}) {
     let query = 'SELECT id, username, full_name, email, role, status, created_at, updated_at FROM users WHERE 1=1';
     let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
     const params = [];
@@ -29,7 +29,11 @@ const UserModel = {
 
     const total = db.prepare(countQuery).get(...countParams).total;
     const offset = (page - 1) * limit;
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+
+    const sortCols = { username: 'username', full_name: 'full_name', email: 'email', role: 'role', status: 'status', created_at: 'created_at' };
+    const sortCol = sortCols[sort] || 'created_at';
+    const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY ${sortCol} ${sortOrder} LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const data = db.prepare(query).all(...params);

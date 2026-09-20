@@ -3,10 +3,10 @@ import SalesModel from '../models/Sale.js';
 const SalesController = {
   getAll(req, res) {
     try {
-      const { search, payment_status, client_id, start_date, end_date, page, limit } = req.query;
+      const { search, payment_status, client_id, start_date, end_date, page, limit, sort, order } = req.query;
       const result = SalesModel.findAll({
         search, payment_status, client_id: client_id ? parseInt(client_id) : null,
-        start_date, end_date, page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        start_date, end_date, page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {

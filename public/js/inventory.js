@@ -1,9 +1,11 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce } from './utils.js';
+import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
 let lowStockOnly = false;
+let currentSort = 'updated_at';
+let currentOrder = 'DESC';
 
 export async function renderInventory() {
   const container = document.getElementById('content-area');
@@ -13,18 +15,19 @@ export async function renderInventory() {
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="inv-low-stock" ${lowStockOnly ? 'checked' : ''}> Low Stock Only</label>
       <button class="btn btn-primary" id="btn-adjust-stock"><i class="fas fa-sliders-h"></i> Adjust Stock</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>SKU</th><th>Product</th><th>Quantity</th><th>Reserved</th><th>Available</th><th>Min Stock</th><th>Location</th><th>Last Restocked</th><th>Status</th></tr></thead><tbody id="inv-tbody"></tbody></table></div><div id="inv-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="sku">SKU<span class="sort-arrow"></span></th><th data-sort="product_name">Product<span class="sort-arrow"></span></th><th data-sort="quantity">Quantity<span class="sort-arrow"></span></th><th data-sort="reserved">Reserved<span class="sort-arrow"></span></th><th>Available</th><th data-sort="min_stock">Min Stock<span class="sort-arrow"></span></th><th data-sort="warehouse_location">Location<span class="sort-arrow"></span></th><th data-sort="last_restocked">Last Restocked<span class="sort-arrow"></span></th><th>Status</th></tr></thead><tbody id="inv-tbody"></tbody></table></div><div id="inv-pagination"></div></div></div>`;
 
   document.getElementById('btn-adjust-stock').onclick = () => openAdjustModal();
   document.getElementById('inv-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadInventory(); });
   document.getElementById('inv-low-stock').onchange = e => { lowStockOnly = e.target.checked; currentPage = 1; loadInventory(); };
 
   await loadInventory();
+  makeSortable(document.querySelector('#inv-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadInventory(); });
 }
 
 async function loadInventory() {
   try {
-    const result = await api.getInventory({ search: currentSearch, low_stock: lowStockOnly ? 'true' : '', page: currentPage, limit: 15 });
+    const result = await api.getInventory({ search: currentSearch, low_stock: lowStockOnly ? 'true' : '', page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('inv-tbody');
     if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-warehouse"></i><p>No inventory items found</p></div></td></tr>'; document.getElementById('inv-pagination').innerHTML = ''; return; }
 
@@ -44,6 +47,7 @@ async function loadInventory() {
     document.querySelectorAll('#inv-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadInventory(); } };
     });
+    refreshSortArrows(document.querySelector('#inv-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 

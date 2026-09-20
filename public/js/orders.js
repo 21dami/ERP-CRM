@@ -1,9 +1,11 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce } from './utils.js';
+import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
 let currentStatus = '';
+let currentSort = 'created_at';
+let currentOrder = 'DESC';
 
 export async function renderOrders() {
   const container = document.getElementById('content-area');
@@ -13,24 +15,25 @@ export async function renderOrders() {
       <select class="filter-select" id="order-status-filter"><option value="">All Status</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
       <button class="btn btn-primary" id="btn-add-order"><i class="fas fa-plus"></i> New Order</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>Order #</th><th>Client</th><th>Date</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead><tbody id="orders-tbody"></tbody></table></div><div id="orders-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="order_number">Order #<span class="sort-arrow"></span></th><th data-sort="client_name">Client<span class="sort-arrow"></span></th><th data-sort="order_date">Date<span class="sort-arrow"></span></th><th data-sort="due_date">Due Date<span class="sort-arrow"></span></th><th data-sort="total">Total<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th data-sort="payment_status">Payment<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="orders-tbody"></tbody></table></div><div id="orders-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-order').onclick = () => openOrderModal();
   document.getElementById('order-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadOrders(); });
   document.getElementById('order-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadOrders(); };
 
   await loadOrders();
+  makeSortable(document.querySelector('#orders-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadOrders(); });
 }
 
 async function loadOrders() {
   try {
-    const result = await api.getOrders({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15 });
+    const result = await api.getOrders({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('orders-tbody');
-    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-shopping-cart"></i><p>No orders found</p></div></td></tr>'; document.getElementById('orders-pagination').innerHTML = ''; return; }
+    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-shopping-cart"></i><p>No orders found</p></div></td></tr>'; document.getElementById('orders-pagination').innerHTML = ''; return; }
 
     tbody.innerHTML = result.data.map(o => `
       <tr>
-        <td><strong>${o.order_number}</strong></td><td>${o.client_name || '-'}</td><td>${formatDate(o.order_date)}</td><td>${formatCurrency(o.total)}</td>
+        <td><strong>${o.order_number}</strong></td><td>${o.client_name || '-'}</td><td>${formatDate(o.order_date)}</td><td>${formatDate(o.due_date)}</td><td>${formatCurrency(o.total)}</td>
         <td>${statusBadge(o.status)}</td><td>${statusBadge(o.payment_status)}</td>
         <td><button class="btn-icon" onclick="window.appViewOrder(${o.id})" title="View"><i class="fas fa-eye"></i></button><button class="btn-icon" onclick="window.appEditOrderStatus(${o.id},'${o.status}')" title="Update Status"><i class="fas fa-sync"></i></button><button class="btn-icon" onclick="window.appDeleteOrder(${o.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
@@ -39,6 +42,7 @@ async function loadOrders() {
     document.querySelectorAll('#orders-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadOrders(); } };
     });
+    refreshSortArrows(document.querySelector('#orders-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -145,6 +149,7 @@ window.appViewOrder = async (id) => {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div><strong>Client:</strong> ${o.client_name || '-'}</div>
         <div><strong>Date:</strong> ${formatDate(o.order_date)}</div>
+        <div><strong>Due Date:</strong> ${formatDate(o.due_date)}</div>
         <div><strong>Status:</strong> ${statusBadge(o.status)}</div>
         <div><strong>Payment:</strong> ${statusBadge(o.payment_status)}</div>
       </div>

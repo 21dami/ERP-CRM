@@ -3,10 +3,10 @@ import OrderModel from '../models/Order.js';
 const OrderController = {
   getAll(req, res) {
     try {
-      const { search, status, payment_status, client_id, page, limit } = req.query;
+      const { search, status, payment_status, client_id, page, limit, sort, order } = req.query;
       const result = OrderModel.findAll({
         search, status, payment_status, client_id: client_id ? parseInt(client_id) : null,
-        page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {

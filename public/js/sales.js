@@ -1,8 +1,10 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce } from './utils.js';
+import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
+let currentSort = 'created_at';
+let currentOrder = 'DESC';
 
 export async function renderSales() {
   const container = document.getElementById('content-area');
@@ -11,17 +13,18 @@ export async function renderSales() {
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="sale-search" placeholder="Search sales..." value="${currentSearch}"></div>
       <button class="btn btn-primary" id="btn-new-sale"><i class="fas fa-plus"></i> New Sale</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>Sale #</th><th>Client</th><th>Date</th><th>Total</th><th>Payment</th><th>Status</th><th>Sold By</th><th>Actions</th></tr></thead><tbody id="sales-tbody"></tbody></table></div><div id="sales-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="sale_number">Sale #<span class="sort-arrow"></span></th><th data-sort="client_name">Client<span class="sort-arrow"></span></th><th data-sort="sale_date">Date<span class="sort-arrow"></span></th><th data-sort="total">Total<span class="sort-arrow"></span></th><th data-sort="payment_method">Payment<span class="sort-arrow"></span></th><th data-sort="payment_status">Status<span class="sort-arrow"></span></th><th data-sort="sold_by">Sold By<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="sales-tbody"></tbody></table></div><div id="sales-pagination"></div></div></div>`;
 
   document.getElementById('btn-new-sale').onclick = () => openSaleModal();
   document.getElementById('sale-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadSales(); });
 
   await loadSales();
+  makeSortable(document.querySelector('#sales-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadSales(); });
 }
 
 async function loadSales() {
   try {
-    const result = await api.getSales({ search: currentSearch, page: currentPage, limit: 15 });
+    const result = await api.getSales({ search: currentSearch, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('sales-tbody');
     if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-dollar-sign"></i><p>No sales found</p></div></td></tr>'; document.getElementById('sales-pagination').innerHTML = ''; return; }
 
@@ -36,6 +39,7 @@ async function loadSales() {
     document.querySelectorAll('#sales-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadSales(); } };
     });
+    refreshSortArrows(document.querySelector('#sales-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 

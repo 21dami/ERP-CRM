@@ -1,7 +1,7 @@
 import db from '../config/database.js';
 
 const EmployeeModel = {
-  findAll({ search, department, status, page = 1, limit = 20 } = {}) {
+  findAll({ search, department, status, page = 1, limit = 20, sort, order } = {}) {
     let query = 'SELECT * FROM employees WHERE 1=1';
     let countQuery = 'SELECT COUNT(*) as total FROM employees WHERE 1=1';
     const params = [];
@@ -29,7 +29,11 @@ const EmployeeModel = {
 
     const total = db.prepare(countQuery).get(...countParams).total;
     const offset = (page - 1) * limit;
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+
+    const sortCols = { employee_id: 'employee_id', first_name: 'first_name', last_name: 'last_name', email: 'email', department: 'department', position: 'position', hire_date: 'hire_date', salary: 'salary', status: 'status', created_at: 'created_at' };
+    const sortCol = sortCols[sort] || 'created_at';
+    const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY ${sortCol} ${sortOrder} LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const data = db.prepare(query).all(...params);

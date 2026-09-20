@@ -4,9 +4,9 @@ import InventoryModel from '../models/Inventory.js';
 const ProductController = {
   getAll(req, res) {
     try {
-      const { search, category, status, page, limit } = req.query;
+      const { search, category, status, page, limit, sort, order } = req.query;
       const result = ProductModel.findAll({
-        search, category, status, page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        search, category, status, page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {

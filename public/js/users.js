@@ -1,10 +1,12 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatDate, statusBadge, buildPagination, debounce } from './utils.js';
+import { showToast, showModal, hideModal, formatDate, statusBadge, buildPagination, debounce, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
 let currentRole = '';
 let currentStatus = '';
+let currentSort = 'created_at';
+let currentOrder = 'DESC';
 
 export async function renderUsers() {
   const container = document.getElementById('content-area');
@@ -29,7 +31,7 @@ export async function renderUsers() {
     </div>
     <div class="card"><div class="card-body"><div class="table-container">
       <table>
-        <thead><tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <thead><tr><th data-sort="username">Username<span class="sort-arrow"></span></th><th data-sort="full_name">Full Name<span class="sort-arrow"></span></th><th data-sort="email">Email<span class="sort-arrow"></span></th><th data-sort="role">Role<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th data-sort="created_at">Created<span class="sort-arrow"></span></th><th>Actions</th></tr></thead>
         <tbody id="users-tbody"></tbody>
       </table>
     </div><div id="users-pagination"></div></div></div>`;
@@ -40,11 +42,12 @@ export async function renderUsers() {
   document.getElementById('user-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadUsers(); };
 
   await loadUsers();
+  makeSortable(document.querySelector('#users-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadUsers(); });
 }
 
 async function loadUsers() {
   try {
-    const result = await api.getUsers({ search: currentSearch, role: currentRole, status: currentStatus, page: currentPage, limit: 15 });
+    const result = await api.getUsers({ search: currentSearch, role: currentRole, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('users-tbody');
     if (!result.data.length) {
       tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>No users found</p></div></td></tr>';
@@ -71,6 +74,7 @@ async function loadUsers() {
     document.querySelectorAll('#users-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadUsers(); } };
     });
+    refreshSortArrows(document.querySelector('#users-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 

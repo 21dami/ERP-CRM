@@ -1,9 +1,11 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatDate, statusBadge, buildPagination, debounce, formatCurrency } from './utils.js';
+import { showToast, showModal, hideModal, formatDate, statusBadge, buildPagination, debounce, formatCurrency, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
 let currentDept = '';
+let currentSort = 'created_at';
+let currentOrder = 'DESC';
 
 export async function renderEmployees() {
   const container = document.getElementById('content-area');
@@ -16,18 +18,19 @@ export async function renderEmployees() {
       <select class="filter-select" id="emp-dept-filter"><option value="">All Departments</option>${departments.map(d => `<option value="${d}" ${currentDept === d ? 'selected' : ''}>${d}</option>`).join('')}</select>
       <button class="btn btn-primary" id="btn-add-emp"><i class="fas fa-plus"></i> Add Employee</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Position</th><th>Hire Date</th><th>Salary</th><th>Status</th><th>Actions</th></tr></thead><tbody id="emp-tbody"></tbody></table></div><div id="emp-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="employee_id">ID<span class="sort-arrow"></span></th><th data-sort="first_name">Name<span class="sort-arrow"></span></th><th data-sort="email">Email<span class="sort-arrow"></span></th><th data-sort="department">Department<span class="sort-arrow"></span></th><th data-sort="position">Position<span class="sort-arrow"></span></th><th data-sort="hire_date">Hire Date<span class="sort-arrow"></span></th><th data-sort="salary">Salary<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="emp-tbody"></tbody></table></div><div id="emp-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-emp').onclick = () => openEmpModal();
   document.getElementById('emp-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadEmployees(); });
   document.getElementById('emp-dept-filter').onchange = e => { currentDept = e.target.value; currentPage = 1; loadEmployees(); };
 
   await loadEmployees();
+  makeSortable(document.querySelector('#emp-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadEmployees(); });
 }
 
 async function loadEmployees() {
   try {
-    const result = await api.getEmployees({ search: currentSearch, department: currentDept, page: currentPage, limit: 15 });
+    const result = await api.getEmployees({ search: currentSearch, department: currentDept, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('emp-tbody');
     if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-user-tie"></i><p>No employees found</p></div></td></tr>'; document.getElementById('emp-pagination').innerHTML = ''; return; }
 
@@ -42,6 +45,7 @@ async function loadEmployees() {
     document.querySelectorAll('#emp-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadEmployees(); } };
     });
+    refreshSortArrows(document.querySelector('#emp-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 

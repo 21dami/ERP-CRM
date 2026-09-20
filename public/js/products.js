@@ -1,9 +1,11 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatCurrency, statusBadge, buildPagination, debounce } from './utils.js';
+import { showToast, showModal, hideModal, formatCurrency, statusBadge, buildPagination, debounce, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
 let currentCategory = '';
+let currentSort = 'created_at';
+let currentOrder = 'DESC';
 
 export async function renderProducts() {
   const container = document.getElementById('content-area');
@@ -16,18 +18,19 @@ export async function renderProducts() {
       <select class="filter-select" id="product-category-filter"><option value="">All Categories</option>${categories.map(c => `<option value="${c}" ${currentCategory === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
       <button class="btn btn-primary" id="btn-add-product"><i class="fas fa-plus"></i> Add Product</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody id="products-tbody"></tbody></table></div><div id="products-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="sku">SKU<span class="sort-arrow"></span></th><th data-sort="name">Name<span class="sort-arrow"></span></th><th data-sort="category">Category<span class="sort-arrow"></span></th><th data-sort="unit_price">Price<span class="sort-arrow"></span></th><th data-sort="cost_price">Cost<span class="sort-arrow"></span></th><th data-sort="stock_quantity">Stock<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="products-tbody"></tbody></table></div><div id="products-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-product').onclick = () => openProductModal();
   document.getElementById('product-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadProducts(); });
   document.getElementById('product-category-filter').onchange = e => { currentCategory = e.target.value; currentPage = 1; loadProducts(); };
 
   await loadProducts();
+  makeSortable(document.querySelector('#products-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadProducts(); });
 }
 
 async function loadProducts() {
   try {
-    const result = await api.getProducts({ search: currentSearch, category: currentCategory, page: currentPage, limit: 15 });
+    const result = await api.getProducts({ search: currentSearch, category: currentCategory, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('products-tbody');
     if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-box"></i><p>No products found</p></div></td></tr>'; document.getElementById('products-pagination').innerHTML = ''; return; }
 
@@ -42,6 +45,7 @@ async function loadProducts() {
     document.querySelectorAll('#products-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadProducts(); } };
     });
+    refreshSortArrows(document.querySelector('#products-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 

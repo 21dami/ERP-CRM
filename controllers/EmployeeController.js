@@ -3,9 +3,9 @@ import EmployeeModel from '../models/Employee.js';
 const EmployeeController = {
   getAll(req, res) {
     try {
-      const { search, department, status, page, limit } = req.query;
+      const { search, department, status, page, limit, sort, order } = req.query;
       const result = EmployeeModel.findAll({
-        search, department, status, page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        search, department, status, page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {

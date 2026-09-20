@@ -1,7 +1,7 @@
 import db from '../config/database.js';
 
 const ProductModel = {
-  findAll({ search, category, status, page = 1, limit = 20 } = {}) {
+  findAll({ search, category, status, page = 1, limit = 20, sort, order } = {}) {
     let query = `SELECT p.*, COALESCE(i.quantity, 0) as stock_quantity
                  FROM products p LEFT JOIN inventory i ON p.id = i.product_id WHERE 1=1`;
     let countQuery = 'SELECT COUNT(*) as total FROM products WHERE 1=1';
@@ -30,7 +30,11 @@ const ProductModel = {
 
     const total = db.prepare(countQuery).get(...countParams).total;
     const offset = (page - 1) * limit;
-    query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+
+    const sortCols = { sku: 'p.sku', name: 'p.name', category: 'p.category', unit_price: 'p.unit_price', cost_price: 'p.cost_price', stock_quantity: 'stock_quantity', status: 'p.status', created_at: 'p.created_at' };
+    const sortCol = sortCols[sort] || 'p.created_at';
+    const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY ${sortCol} ${sortOrder} LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const data = db.prepare(query).all(...params);

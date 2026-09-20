@@ -1,9 +1,11 @@
 import api from './api.js';
-import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce } from './utils.js';
+import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadge, buildPagination, debounce, makeSortable, refreshSortArrows } from './utils.js';
 
 let currentPage = 1;
 let currentSearch = '';
 let currentStatus = '';
+let currentSort = 'created_at';
+let currentOrder = 'DESC';
 
 export async function renderClients() {
   const container = document.getElementById('content-area');
@@ -13,18 +15,19 @@ export async function renderClients() {
       <select class="filter-select" id="client-status-filter"><option value="">All Status</option><option value="active" ${currentStatus === 'active' ? 'selected' : ''}>Active</option><option value="inactive" ${currentStatus === 'inactive' ? 'selected' : ''}>Inactive</option></select>
       <button class="btn btn-primary" id="btn-add-client"><i class="fas fa-plus"></i> Add Client</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>City</th><th>Status</th><th>Actions</th></tr></thead><tbody id="clients-tbody"></tbody></table></div><div id="clients-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="name">Name<span class="sort-arrow"></span></th><th data-sort="company">Company<span class="sort-arrow"></span></th><th data-sort="email">Email<span class="sort-arrow"></span></th><th data-sort="phone">Phone<span class="sort-arrow"></span></th><th data-sort="city">City<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="clients-tbody"></tbody></table></div><div id="clients-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-client').onclick = () => openClientModal();
   document.getElementById('client-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadClients(); });
   document.getElementById('client-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadClients(); };
 
   await loadClients();
+  makeSortable(document.querySelector('#clients-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadClients(); });
 }
 
 async function loadClients() {
   try {
-    const result = await api.getClients({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15 });
+    const result = await api.getClients({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('clients-tbody');
     if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>No clients found</p></div></td></tr>'; document.getElementById('clients-pagination').innerHTML = ''; return; }
 
@@ -38,6 +41,7 @@ async function loadClients() {
     document.querySelectorAll('#clients-pagination .page-btn').forEach(btn => {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadClients(); } };
     });
+    refreshSortArrows(document.querySelector('#clients-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
   } catch (err) { showToast(err.message, 'error'); }
 }
 

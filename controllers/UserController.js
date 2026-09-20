@@ -4,9 +4,9 @@ import UserModel from '../models/User.js';
 const UserController = {
   getAll(req, res) {
     try {
-      const { search, status, role, page, limit } = req.query;
+      const { search, status, role, page, limit, sort, order } = req.query;
       const result = UserModel.findAll({
-        search, status, role, page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        search, status, role, page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {

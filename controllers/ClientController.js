@@ -3,9 +3,9 @@ import ClientModel from '../models/Client.js';
 const ClientController = {
   getAll(req, res) {
     try {
-      const { search, status, page, limit } = req.query;
+      const { search, status, page, limit, sort, order } = req.query;
       const result = ClientModel.findAll({
-        search, status, page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        search, status, page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {

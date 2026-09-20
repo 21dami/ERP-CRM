@@ -1,7 +1,7 @@
 import db from '../config/database.js';
 
 const OrderModel = {
-  findAll({ search, status, payment_status, client_id, page = 1, limit = 20 } = {}) {
+  findAll({ search, status, payment_status, client_id, page = 1, limit = 20, sort, order } = {}) {
     let query = `SELECT o.*, c.name as client_name FROM orders o
                  LEFT JOIN clients c ON o.client_id = c.id WHERE 1=1`;
     let countQuery = 'SELECT COUNT(*) as total FROM orders WHERE 1=1';
@@ -36,7 +36,11 @@ const OrderModel = {
 
     const total = db.prepare(countQuery).get(...countParams).total;
     const offset = (page - 1) * limit;
-    query += ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
+
+    const sortCols = { order_number: 'o.order_number', client_name: 'c.name', order_date: 'o.order_date', total: 'o.total', status: 'o.status', payment_status: 'o.payment_status', due_date: 'o.due_date', created_at: 'o.created_at' };
+    const sortCol = sortCols[sort] || 'o.created_at';
+    const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
+    query += ` ORDER BY ${sortCol} ${sortOrder} LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const data = db.prepare(query).all(...params);

@@ -112,3 +112,34 @@ export function debounce(fn, delay = 300) {
   let timer;
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
 }
+
+export function makeSortable(thead, getSort, getOrder, onSort) {
+  const ths = thead.querySelectorAll('th[data-sort]');
+  ths.forEach(th => {
+    th.style.cursor = 'pointer';
+    th.style.userSelect = 'none';
+    th.onclick = () => {
+      const col = th.dataset.sort;
+      const currentSort = getSort();
+      const currentOrder = getOrder();
+      const newOrder = (col === currentSort && currentOrder === 'ASC') ? 'DESC' : 'ASC';
+      onSort(col, newOrder);
+    };
+  });
+  refreshSortArrows(thead, getSort(), getOrder());
+}
+
+export function refreshSortArrows(thead, currentSort, currentOrder) {
+  const ths = thead.querySelectorAll('th[data-sort]');
+  ths.forEach(th => {
+    th.classList.remove('sort-active');
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = '';
+  });
+  const active = thead.querySelector(`th[data-sort="${currentSort}"]`);
+  if (active) {
+    active.classList.add('sort-active');
+    const arrow = active.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = currentOrder === 'ASC' ? ' \u25B2' : ' \u25BC';
+  }
+}

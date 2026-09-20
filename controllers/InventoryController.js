@@ -3,9 +3,9 @@ import InventoryModel from '../models/Inventory.js';
 const InventoryController = {
   getAll(req, res) {
     try {
-      const { search, low_stock, page, limit } = req.query;
+      const { search, low_stock, page, limit, sort, order } = req.query;
       const result = InventoryModel.findAll({
-        search, low_stock: low_stock === 'true', page: parseInt(page) || 1, limit: parseInt(limit) || 20
+        search, low_stock: low_stock === 'true', page: parseInt(page) || 1, limit: parseInt(limit) || 20, sort, order
       });
       res.json(result);
     } catch (err) {
