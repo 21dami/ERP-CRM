@@ -54,6 +54,10 @@ function updateThemeIcon(theme) {
   if (btn) {
     btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
   }
+  const loginBtn = document.getElementById('login-theme-toggle');
+  if (loginBtn) {
+    loginBtn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  }
 }
 
 function loadLocale() {
@@ -101,7 +105,8 @@ class App {
     document.getElementById('login-form').onsubmit = (e) => this.handleLogin(e);
     document.getElementById('btn-logout').onclick = () => this.handleLogout();
     document.getElementById('modal-close').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
-    document.getElementById('modal-overlay').onclick = (e) => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; };
+    document.getElementById('modal-overlay').onclick = (e) => { if (e.target === e.currentTarget) e.stopPropagation(); };
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('modal-overlay').style.display = 'none'; });
 
     document.querySelectorAll('.nav-item').forEach(item => {
       item.onclick = (e) => {
@@ -124,6 +129,7 @@ class App {
     };
 
     document.getElementById('theme-toggle').onclick = () => toggleTheme();
+    document.getElementById('login-theme-toggle').onclick = () => toggleTheme();
 
     document.getElementById('locale-select').onchange = (e) => {
       setLocale(e.target.value);
@@ -216,6 +222,7 @@ class App {
     document.getElementById('app').style.display = 'none';
     document.getElementById('login-username').value = '';
     document.getElementById('login-password').value = '';
+    updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'light');
   }
 
   showApp() {
