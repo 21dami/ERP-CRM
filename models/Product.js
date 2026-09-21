@@ -2,7 +2,8 @@ import db from '../config/database.js';
 
 const ProductModel = {
   findAll({ search, category, status, page = 1, limit = 20, sort, order } = {}) {
-    let query = `SELECT p.*, COALESCE(i.quantity, 0) as stock_quantity
+    let query = `SELECT p.*, COALESCE(i.quantity, 0) as stock_quantity,
+                 (COALESCE(p.unit_price, 0) - COALESCE(p.cost_price, 0)) as profit
                  FROM products p LEFT JOIN inventory i ON p.id = i.product_id WHERE 1=1`;
     let countQuery = 'SELECT COUNT(*) as total FROM products WHERE 1=1';
     const params = [];
@@ -31,7 +32,7 @@ const ProductModel = {
     const total = db.prepare(countQuery).get(...countParams).total;
     const offset = (page - 1) * limit;
 
-    const sortCols = { sku: 'p.sku', name: 'p.name', category: 'p.category', unit_price: 'p.unit_price', cost_price: 'p.cost_price', stock_quantity: 'stock_quantity', status: 'p.status', created_at: 'p.created_at' };
+    const sortCols = { sku: 'p.sku', name: 'p.name', category: 'p.category', unit_price: 'p.unit_price', cost_price: 'p.cost_price', profit: 'profit', stock_quantity: 'stock_quantity', status: 'p.status', created_at: 'p.created_at' };
     const sortCol = sortCols[sort] || 'p.created_at';
     const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
     query += ` ORDER BY ${sortCol} ${sortOrder} LIMIT ? OFFSET ?`;
@@ -43,7 +44,8 @@ const ProductModel = {
 
   findById(id) {
     return db.prepare(`SELECT p.*, COALESCE(i.quantity, 0) as stock_quantity,
-                       i.warehouse_location, i.last_restocked
+                       i.warehouse_location, i.last_restocked,
+                       (COALESCE(p.unit_price, 0) - COALESCE(p.cost_price, 0)) as profit
                        FROM products p LEFT JOIN inventory i ON p.id = i.product_id
                        WHERE p.id = ?`).get(id);
   },
@@ -101,7 +103,9 @@ const ProductModel = {
   },
 
   getLowStock() {
-    return db.prepare(`SELECT p.*, i.quantity as stock_quantity FROM products p
+    return db.prepare(`SELECT p.*, i.quantity as stock_quantity,
+      (COALESCE(p.unit_price, 0) - COALESCE(p.cost_price, 0)) as profit
+      FROM products p
       JOIN inventory i ON p.id = i.product_id WHERE i.quantity <= p.min_stock AND p.status = 'active'
       ORDER BY i.quantity ASC`).all();
   }

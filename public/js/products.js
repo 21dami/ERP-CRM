@@ -14,6 +14,7 @@ const COLUMNS = [
   { key: 'category', label: 'Category' },
   { key: 'unit_price', label: 'Price' },
   { key: 'cost_price', label: 'Cost' },
+  { key: 'profit', label: 'Profit' },
   { key: 'stock_quantity', label: 'Stock' },
   { key: 'status', label: 'Status' }
 ];
@@ -83,12 +84,16 @@ async function loadProducts() {
     const tbody = document.getElementById('products-tbody');
     if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-box"></i><p>No products found</p></div></td></tr>`; document.getElementById('products-pagination').innerHTML = ''; return; }
 
-    tbody.innerHTML = result.data.map(p => `
+    tbody.innerHTML = result.data.map(p => {
+      const profit = (parseFloat(p.unit_price) || 0) - (parseFloat(p.cost_price) || 0);
+      return `
       <tr>
         <td data-col="sku"><code>${p.sku}</code></td><td data-col="name"><strong>${p.name}</strong></td><td data-col="category">${p.category || '-'}</td><td data-col="unit_price">${formatCurrency(p.unit_price)}</td><td data-col="cost_price">${formatCurrency(p.cost_price)}</td>
+        <td data-col="profit" style="color:${profit >= 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600">${formatCurrency(profit)}</td>
         <td data-col="stock_quantity"><span style="color:${p.stock_quantity <= p.min_stock ? 'var(--danger)' : 'var(--text)'};font-weight:600">${p.stock_quantity}</span></td><td data-col="status">${statusBadge(p.status)}</td>
         <td><button class="btn-icon" onclick="window.appEditProduct(${p.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteProduct(${p.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
 
     document.getElementById('products-pagination').innerHTML = buildPagination(result.page, result.pages);
     document.querySelectorAll('#products-pagination .page-btn').forEach(btn => {
@@ -118,22 +123,38 @@ async function openProductModal(product = null) {
         <div class="form-group"><label>Unit</label><input name="unit" value="${product?.unit || 'pcs'}" list="unit-list"><datalist id="unit-list">${units.map(u => `<option value="${u}">`).join('')}</datalist></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Unit Price *</label><input type="number" step="0.01" name="unit_price" value="${product?.unit_price || ''}" required></div>
-        <div class="form-group"><label>Cost Price</label><input type="number" step="0.01" name="cost_price" value="${product?.cost_price || ''}"></div>
+        <div class="form-group"><label>Unit Price *</label><input type="number" step="0.01" name="unit_price" id="modal-unit-price" value="${product?.unit_price || ''}" required></div>
+        <div class="form-group"><label>Cost Price</label><input type="number" step="0.01" name="cost_price" id="modal-cost-price" value="${product?.cost_price || ''}"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Profit</label><input type="text" id="modal-profit" readonly style="background:var(--surface-alt);color:var(--text-secondary);font-weight:600"></div>
         <div class="form-group"><label>Tax Rate (%)</label><input type="number" step="0.01" name="tax_rate" value="${product?.tax_rate || 0}" list="tax-list"><datalist id="tax-list">${taxRates.map(t => `<option value="${t}">`).join('')}</datalist></div>
-        <div class="form-group"><label>Min Stock</label><input type="number" name="min_stock" value="${product?.min_stock || 0}"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Min Stock</label><input type="number" name="min_stock" value="${product?.min_stock || 0}"></div>
         <div class="form-group"><label>Stock Quantity</label><input type="number" name="stock_quantity" value="${product?.stock_quantity || 0}"></div>
-        <div class="form-group"><label>Warehouse Location</label><input name="warehouse_location" value="${product?.warehouse_location || ''}" list="location-list"><datalist id="location-list">${locations.map(l => `<option value="${l}">`).join('')}</datalist></div>
       </div>
+      <div class="form-group"><label>Warehouse Location</label><input name="warehouse_location" value="${product?.warehouse_location || ''}" list="location-list"><datalist id="location-list">${locations.map(l => `<option value="${l}">`).join('')}</datalist></div>
       <div class="form-group"><label>Status</label><select name="status"><option value="active" ${product?.status !== 'inactive' ? 'selected' : ''}>Active</option><option value="inactive" ${product?.status === 'inactive' ? 'selected' : ''}>Inactive</option></select></div>
     </form>`,
     `<button class="btn btn-secondary" id="modal-cancel">Cancel</button><button class="btn btn-primary" id="modal-save">${isEdit ? 'Update' : 'Create'}</button>`);
 
   document.getElementById('modal-cancel').onclick = hideModal;
+
+  const priceInput = document.getElementById('modal-unit-price');
+  const costInput = document.getElementById('modal-cost-price');
+  const profitInput = document.getElementById('modal-profit');
+  function updateProfit() {
+    const price = parseFloat(priceInput.value) || 0;
+    const cost = parseFloat(costInput.value) || 0;
+    const profit = price - cost;
+    profitInput.value = formatCurrency(profit);
+    profitInput.style.color = profit >= 0 ? 'var(--success)' : 'var(--danger)';
+  }
+  priceInput.oninput = updateProfit;
+  costInput.oninput = updateProfit;
+  updateProfit();
+
   document.getElementById('modal-save').onclick = async () => {
     const form = document.getElementById('product-form');
     const fd = new FormData(form);
