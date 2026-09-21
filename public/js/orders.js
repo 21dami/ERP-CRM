@@ -7,34 +7,83 @@ let currentStatus = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
+const STORAGE_KEY = 'erp_orders_hidden_columns';
+const COLUMNS = [
+  { key: 'order_number', label: 'Order #' },
+  { key: 'client_name', label: 'Client' },
+  { key: 'order_date', label: 'Date' },
+  { key: 'due_date', label: 'Due Date' },
+  { key: 'total', label: 'Total' },
+  { key: 'status', label: 'Status' },
+  { key: 'payment_status', label: 'Payment' }
+];
+
+function getHiddenColumns() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setHiddenColumns(cols) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+function applyColumnVisibility() {
+  const hidden = getHiddenColumns();
+  document.querySelectorAll('th[data-col], td[data-col]').forEach(el => {
+    el.classList.toggle('hidden', hidden.includes(el.dataset.col));
+  });
+  document.querySelectorAll('.column-dropdown-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.col);
+  });
+}
+
 export async function renderOrders() {
   const container = document.getElementById('content-area');
+  const hiddenCols = getHiddenColumns();
   container.innerHTML = `
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="order-search" placeholder="Search orders..." value="${currentSearch}"></div>
       <select class="filter-select" id="order-status-filter"><option value="">All Status</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
+      <div class="column-toggle-wrap">
+        <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
+        <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
+      </div>
       <button class="btn btn-primary" id="btn-add-order"><i class="fas fa-plus"></i> New Order</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="order_number">Order #<span class="sort-arrow"></span></th><th data-sort="client_name">Client<span class="sort-arrow"></span></th><th data-sort="order_date">Date<span class="sort-arrow"></span></th><th data-sort="due_date">Due Date<span class="sort-arrow"></span></th><th data-sort="total">Total<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th data-sort="payment_status">Payment<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="orders-tbody"></tbody></table></div><div id="orders-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="orders-tbody"></tbody></table></div><div id="orders-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-order').onclick = () => openOrderModal();
   document.getElementById('order-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadOrders(); });
   document.getElementById('order-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadOrders(); };
 
+  const colBtn = document.getElementById('btn-columns');
+  const colDropdown = document.getElementById('columns-dropdown');
+  colBtn.onclick = (e) => { e.stopPropagation(); colDropdown.classList.toggle('open'); };
+  document.addEventListener('click', () => colDropdown.classList.remove('open'));
+  colDropdown.onclick = (e) => e.stopPropagation();
+  colDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const hidden = getHiddenColumns();
+      if (cb.checked) setHiddenColumns(hidden.filter(k => k !== cb.dataset.col));
+      else { hidden.push(cb.dataset.col); setHiddenColumns(hidden); }
+      applyColumnVisibility();
+    };
+  });
+
   await loadOrders();
   makeSortable(document.querySelector('#orders-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadOrders(); });
+  applyColumnVisibility();
 }
 
 async function loadOrders() {
   try {
     const result = await api.getOrders({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('orders-tbody');
-    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-shopping-cart"></i><p>No orders found</p></div></td></tr>'; document.getElementById('orders-pagination').innerHTML = ''; return; }
+    if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-shopping-cart"></i><p>No orders found</p></div></td></tr>`; document.getElementById('orders-pagination').innerHTML = ''; return; }
 
     tbody.innerHTML = result.data.map(o => `
       <tr>
-        <td><strong>${o.order_number}</strong></td><td>${o.client_name || '-'}</td><td>${formatDate(o.order_date)}</td><td>${formatDate(o.due_date)}</td><td>${formatCurrency(o.total)}</td>
-        <td>${statusBadge(o.status)}</td><td>${statusBadge(o.payment_status)}</td>
+        <td data-col="order_number"><strong>${o.order_number}</strong></td><td data-col="client_name">${o.client_name || '-'}</td><td data-col="order_date">${formatDate(o.order_date)}</td><td data-col="due_date">${formatDate(o.due_date)}</td><td data-col="total">${formatCurrency(o.total)}</td>
+        <td data-col="status">${statusBadge(o.status)}</td><td data-col="payment_status">${statusBadge(o.payment_status)}</td>
         <td><button class="btn-icon" onclick="window.appViewOrder(${o.id})" title="View"><i class="fas fa-eye"></i></button><button class="btn-icon" onclick="window.appEditOrderStatus(${o.id},'${o.status}')" title="Update Status"><i class="fas fa-sync"></i></button><button class="btn-icon" onclick="window.appDeleteOrder(${o.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
@@ -43,6 +92,7 @@ async function loadOrders() {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadOrders(); } };
     });
     refreshSortArrows(document.querySelector('#orders-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
+    applyColumnVisibility();
   } catch (err) { showToast(err.message, 'error'); }
 }
 

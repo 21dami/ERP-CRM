@@ -7,33 +7,81 @@ let currentStatus = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
+const STORAGE_KEY = 'erp_clients_hidden_columns';
+const COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'company', label: 'Company' },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'city', label: 'City' },
+  { key: 'status', label: 'Status' }
+];
+
+function getHiddenColumns() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setHiddenColumns(cols) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+function applyColumnVisibility() {
+  const hidden = getHiddenColumns();
+  document.querySelectorAll('th[data-col], td[data-col]').forEach(el => {
+    el.classList.toggle('hidden', hidden.includes(el.dataset.col));
+  });
+  document.querySelectorAll('.column-dropdown-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.col);
+  });
+}
+
 export async function renderClients() {
   const container = document.getElementById('content-area');
+  const hiddenCols = getHiddenColumns();
   container.innerHTML = `
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="client-search" placeholder="Search clients..." value="${currentSearch}"></div>
       <select class="filter-select" id="client-status-filter"><option value="">All Status</option><option value="active" ${currentStatus === 'active' ? 'selected' : ''}>Active</option><option value="inactive" ${currentStatus === 'inactive' ? 'selected' : ''}>Inactive</option></select>
+      <div class="column-toggle-wrap">
+        <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
+        <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
+      </div>
       <button class="btn btn-primary" id="btn-add-client"><i class="fas fa-plus"></i> Add Client</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="name">Name<span class="sort-arrow"></span></th><th data-sort="company">Company<span class="sort-arrow"></span></th><th data-sort="email">Email<span class="sort-arrow"></span></th><th data-sort="phone">Phone<span class="sort-arrow"></span></th><th data-sort="city">City<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="clients-tbody"></tbody></table></div><div id="clients-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="clients-tbody"></tbody></table></div><div id="clients-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-client').onclick = () => openClientModal();
   document.getElementById('client-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadClients(); });
   document.getElementById('client-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadClients(); };
 
+  const colBtn = document.getElementById('btn-columns');
+  const colDropdown = document.getElementById('columns-dropdown');
+  colBtn.onclick = (e) => { e.stopPropagation(); colDropdown.classList.toggle('open'); };
+  document.addEventListener('click', () => colDropdown.classList.remove('open'));
+  colDropdown.onclick = (e) => e.stopPropagation();
+  colDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const hidden = getHiddenColumns();
+      if (cb.checked) setHiddenColumns(hidden.filter(k => k !== cb.dataset.col));
+      else { hidden.push(cb.dataset.col); setHiddenColumns(hidden); }
+      applyColumnVisibility();
+    };
+  });
+
   await loadClients();
   makeSortable(document.querySelector('#clients-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadClients(); });
+  applyColumnVisibility();
 }
 
 async function loadClients() {
   try {
     const result = await api.getClients({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('clients-tbody');
-    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>No clients found</p></div></td></tr>'; document.getElementById('clients-pagination').innerHTML = ''; return; }
+    if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-users"></i><p>No clients found</p></div></td></tr>`; document.getElementById('clients-pagination').innerHTML = ''; return; }
 
     tbody.innerHTML = result.data.map(c => `
       <tr>
-        <td><strong>${c.name}</strong></td><td>${c.company || '-'}</td><td>${c.email || '-'}</td><td>${c.phone || '-'}</td><td>${c.city || '-'}</td><td>${statusBadge(c.status)}</td>
+        <td data-col="name"><strong>${c.name}</strong></td><td data-col="company">${c.company || '-'}</td><td data-col="email">${c.email || '-'}</td><td data-col="phone">${c.phone || '-'}</td><td data-col="city">${c.city || '-'}</td><td data-col="status">${statusBadge(c.status)}</td>
         <td><button class="btn-icon" onclick="window.appEditClient(${c.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteClient(${c.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
@@ -42,6 +90,7 @@ async function loadClients() {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadClients(); } };
     });
     refreshSortArrows(document.querySelector('#clients-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
+    applyColumnVisibility();
   } catch (err) { showToast(err.message, 'error'); }
 }
 

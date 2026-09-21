@@ -6,32 +6,81 @@ let currentSearch = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
+const STORAGE_KEY = 'erp_sales_hidden_columns';
+const COLUMNS = [
+  { key: 'sale_number', label: 'Sale #' },
+  { key: 'client_name', label: 'Client' },
+  { key: 'sale_date', label: 'Date' },
+  { key: 'total', label: 'Total' },
+  { key: 'payment_method', label: 'Payment' },
+  { key: 'payment_status', label: 'Status' },
+  { key: 'sold_by', label: 'Sold By' }
+];
+
+function getHiddenColumns() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setHiddenColumns(cols) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+function applyColumnVisibility() {
+  const hidden = getHiddenColumns();
+  document.querySelectorAll('th[data-col], td[data-col]').forEach(el => {
+    el.classList.toggle('hidden', hidden.includes(el.dataset.col));
+  });
+  document.querySelectorAll('.column-dropdown-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.col);
+  });
+}
+
 export async function renderSales() {
   const container = document.getElementById('content-area');
+  const hiddenCols = getHiddenColumns();
   container.innerHTML = `
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="sale-search" placeholder="Search sales..." value="${currentSearch}"></div>
+      <div class="column-toggle-wrap">
+        <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
+        <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
+      </div>
       <button class="btn btn-primary" id="btn-new-sale"><i class="fas fa-plus"></i> New Sale</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="sale_number">Sale #<span class="sort-arrow"></span></th><th data-sort="client_name">Client<span class="sort-arrow"></span></th><th data-sort="sale_date">Date<span class="sort-arrow"></span></th><th data-sort="total">Total<span class="sort-arrow"></span></th><th data-sort="payment_method">Payment<span class="sort-arrow"></span></th><th data-sort="payment_status">Status<span class="sort-arrow"></span></th><th data-sort="sold_by">Sold By<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="sales-tbody"></tbody></table></div><div id="sales-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="sales-tbody"></tbody></table></div><div id="sales-pagination"></div></div></div>`;
 
   document.getElementById('btn-new-sale').onclick = () => openSaleModal();
   document.getElementById('sale-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadSales(); });
 
+  const colBtn = document.getElementById('btn-columns');
+  const colDropdown = document.getElementById('columns-dropdown');
+  colBtn.onclick = (e) => { e.stopPropagation(); colDropdown.classList.toggle('open'); };
+  document.addEventListener('click', () => colDropdown.classList.remove('open'));
+  colDropdown.onclick = (e) => e.stopPropagation();
+  colDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const hidden = getHiddenColumns();
+      if (cb.checked) setHiddenColumns(hidden.filter(k => k !== cb.dataset.col));
+      else { hidden.push(cb.dataset.col); setHiddenColumns(hidden); }
+      applyColumnVisibility();
+    };
+  });
+
   await loadSales();
   makeSortable(document.querySelector('#sales-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadSales(); });
+  applyColumnVisibility();
 }
 
 async function loadSales() {
   try {
     const result = await api.getSales({ search: currentSearch, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('sales-tbody');
-    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-dollar-sign"></i><p>No sales found</p></div></td></tr>'; document.getElementById('sales-pagination').innerHTML = ''; return; }
+    if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-dollar-sign"></i><p>No sales found</p></div></td></tr>`; document.getElementById('sales-pagination').innerHTML = ''; return; }
 
     tbody.innerHTML = result.data.map(s => `
       <tr>
-        <td><strong>${s.sale_number}</strong></td><td>${s.client_name || '-'}</td><td>${formatDate(s.sale_date)}</td><td>${formatCurrency(s.total)}</td>
-        <td>${statusBadge(s.payment_method || 'cash')}</td><td>${statusBadge(s.payment_status)}</td><td>${s.sold_by || '-'}</td>
+        <td data-col="sale_number"><strong>${s.sale_number}</strong></td><td data-col="client_name">${s.client_name || '-'}</td><td data-col="sale_date">${formatDate(s.sale_date)}</td><td data-col="total">${formatCurrency(s.total)}</td>
+        <td data-col="payment_method">${statusBadge(s.payment_method || 'cash')}</td><td data-col="payment_status">${statusBadge(s.payment_status)}</td><td data-col="sold_by">${s.sold_by || '-'}</td>
         <td><button class="btn-icon" onclick="window.appViewSale(${s.id})" title="View"><i class="fas fa-eye"></i></button></td>
       </tr>`).join('');
 
@@ -40,6 +89,7 @@ async function loadSales() {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadSales(); } };
     });
     refreshSortArrows(document.querySelector('#sales-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
+    applyColumnVisibility();
   } catch (err) { showToast(err.message, 'error'); }
 }
 

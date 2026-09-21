@@ -7,37 +7,86 @@ let currentCategory = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
+const STORAGE_KEY = 'erp_products_hidden_columns';
+const COLUMNS = [
+  { key: 'sku', label: 'SKU' },
+  { key: 'name', label: 'Name' },
+  { key: 'category', label: 'Category' },
+  { key: 'unit_price', label: 'Price' },
+  { key: 'cost_price', label: 'Cost' },
+  { key: 'stock_quantity', label: 'Stock' },
+  { key: 'status', label: 'Status' }
+];
+
+function getHiddenColumns() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setHiddenColumns(cols) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+function applyColumnVisibility() {
+  const hidden = getHiddenColumns();
+  document.querySelectorAll('th[data-col], td[data-col]').forEach(el => {
+    el.classList.toggle('hidden', hidden.includes(el.dataset.col));
+  });
+  document.querySelectorAll('.column-dropdown-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.col);
+  });
+}
+
 export async function renderProducts() {
   const container = document.getElementById('content-area');
   let categories = [];
   try { categories = await api.getCategories(); } catch(e) {}
 
+  const hiddenCols = getHiddenColumns();
   container.innerHTML = `
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="product-search" placeholder="Search products..." value="${currentSearch}"></div>
       <select class="filter-select" id="product-category-filter"><option value="">All Categories</option>${categories.map(c => `<option value="${c}" ${currentCategory === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      <div class="column-toggle-wrap">
+        <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
+        <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
+      </div>
       <button class="btn btn-primary" id="btn-add-product"><i class="fas fa-plus"></i> Add Product</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="sku">SKU<span class="sort-arrow"></span></th><th data-sort="name">Name<span class="sort-arrow"></span></th><th data-sort="category">Category<span class="sort-arrow"></span></th><th data-sort="unit_price">Price<span class="sort-arrow"></span></th><th data-sort="cost_price">Cost<span class="sort-arrow"></span></th><th data-sort="stock_quantity">Stock<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="products-tbody"></tbody></table></div><div id="products-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="products-tbody"></tbody></table></div><div id="products-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-product').onclick = () => openProductModal().catch(err => showToast(err.message, 'error'));
   document.getElementById('product-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadProducts(); });
   document.getElementById('product-category-filter').onchange = e => { currentCategory = e.target.value; currentPage = 1; loadProducts(); };
 
+  const colBtn = document.getElementById('btn-columns');
+  const colDropdown = document.getElementById('columns-dropdown');
+  colBtn.onclick = (e) => { e.stopPropagation(); colDropdown.classList.toggle('open'); };
+  document.addEventListener('click', () => colDropdown.classList.remove('open'));
+  colDropdown.onclick = (e) => e.stopPropagation();
+  colDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const hidden = getHiddenColumns();
+      if (cb.checked) setHiddenColumns(hidden.filter(k => k !== cb.dataset.col));
+      else { hidden.push(cb.dataset.col); setHiddenColumns(hidden); }
+      applyColumnVisibility();
+    };
+  });
+
   await loadProducts();
   makeSortable(document.querySelector('#products-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadProducts(); });
+  applyColumnVisibility();
 }
 
 async function loadProducts() {
   try {
     const result = await api.getProducts({ search: currentSearch, category: currentCategory, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('products-tbody');
-    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-box"></i><p>No products found</p></div></td></tr>'; document.getElementById('products-pagination').innerHTML = ''; return; }
+    if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-box"></i><p>No products found</p></div></td></tr>`; document.getElementById('products-pagination').innerHTML = ''; return; }
 
     tbody.innerHTML = result.data.map(p => `
       <tr>
-        <td><code>${p.sku}</code></td><td><strong>${p.name}</strong></td><td>${p.category || '-'}</td><td>${formatCurrency(p.unit_price)}</td><td>${formatCurrency(p.cost_price)}</td>
-        <td><span style="color:${p.stock_quantity <= p.min_stock ? 'var(--danger)' : 'var(--text)'};font-weight:600">${p.stock_quantity}</span></td><td>${statusBadge(p.status)}</td>
+        <td data-col="sku"><code>${p.sku}</code></td><td data-col="name"><strong>${p.name}</strong></td><td data-col="category">${p.category || '-'}</td><td data-col="unit_price">${formatCurrency(p.unit_price)}</td><td data-col="cost_price">${formatCurrency(p.cost_price)}</td>
+        <td data-col="stock_quantity"><span style="color:${p.stock_quantity <= p.min_stock ? 'var(--danger)' : 'var(--text)'};font-weight:600">${p.stock_quantity}</span></td><td data-col="status">${statusBadge(p.status)}</td>
         <td><button class="btn-icon" onclick="window.appEditProduct(${p.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteProduct(${p.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
@@ -46,6 +95,7 @@ async function loadProducts() {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadProducts(); } };
     });
     refreshSortArrows(document.querySelector('#products-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
+    applyColumnVisibility();
   } catch (err) { showToast(err.message, 'error'); }
 }
 

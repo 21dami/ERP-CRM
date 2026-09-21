@@ -7,37 +7,87 @@ let currentDept = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
+const STORAGE_KEY = 'erp_employees_hidden_columns';
+const COLUMNS = [
+  { key: 'employee_id', label: 'ID' },
+  { key: 'first_name', label: 'Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'department', label: 'Department' },
+  { key: 'position', label: 'Position' },
+  { key: 'hire_date', label: 'Hire Date' },
+  { key: 'salary', label: 'Salary' },
+  { key: 'status', label: 'Status' }
+];
+
+function getHiddenColumns() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setHiddenColumns(cols) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+function applyColumnVisibility() {
+  const hidden = getHiddenColumns();
+  document.querySelectorAll('th[data-col], td[data-col]').forEach(el => {
+    el.classList.toggle('hidden', hidden.includes(el.dataset.col));
+  });
+  document.querySelectorAll('.column-dropdown-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.col);
+  });
+}
+
 export async function renderEmployees() {
   const container = document.getElementById('content-area');
   let departments = [];
   try { departments = await api.getDepartments(); } catch(e) {}
 
+  const hiddenCols = getHiddenColumns();
   container.innerHTML = `
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="emp-search" placeholder="Search employees..." value="${currentSearch}"></div>
       <select class="filter-select" id="emp-dept-filter"><option value="">All Departments</option>${departments.map(d => `<option value="${d}" ${currentDept === d ? 'selected' : ''}>${d}</option>`).join('')}</select>
+      <div class="column-toggle-wrap">
+        <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
+        <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
+      </div>
       <button class="btn btn-primary" id="btn-add-emp"><i class="fas fa-plus"></i> Add Employee</button>
     </div>
-    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="employee_id">ID<span class="sort-arrow"></span></th><th data-sort="first_name">Name<span class="sort-arrow"></span></th><th data-sort="email">Email<span class="sort-arrow"></span></th><th data-sort="department">Department<span class="sort-arrow"></span></th><th data-sort="position">Position<span class="sort-arrow"></span></th><th data-sort="hire_date">Hire Date<span class="sort-arrow"></span></th><th data-sort="salary">Salary<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="emp-tbody"></tbody></table></div><div id="emp-pagination"></div></div></div>`;
+    <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="emp-tbody"></tbody></table></div><div id="emp-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-emp').onclick = () => openEmpModal();
   document.getElementById('emp-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadEmployees(); });
   document.getElementById('emp-dept-filter').onchange = e => { currentDept = e.target.value; currentPage = 1; loadEmployees(); };
 
+  const colBtn = document.getElementById('btn-columns');
+  const colDropdown = document.getElementById('columns-dropdown');
+  colBtn.onclick = (e) => { e.stopPropagation(); colDropdown.classList.toggle('open'); };
+  document.addEventListener('click', () => colDropdown.classList.remove('open'));
+  colDropdown.onclick = (e) => e.stopPropagation();
+  colDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const hidden = getHiddenColumns();
+      if (cb.checked) setHiddenColumns(hidden.filter(k => k !== cb.dataset.col));
+      else { hidden.push(cb.dataset.col); setHiddenColumns(hidden); }
+      applyColumnVisibility();
+    };
+  });
+
   await loadEmployees();
   makeSortable(document.querySelector('#emp-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadEmployees(); });
+  applyColumnVisibility();
 }
 
 async function loadEmployees() {
   try {
     const result = await api.getEmployees({ search: currentSearch, department: currentDept, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('emp-tbody');
-    if (!result.data.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-user-tie"></i><p>No employees found</p></div></td></tr>'; document.getElementById('emp-pagination').innerHTML = ''; return; }
+    if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-user-tie"></i><p>No employees found</p></div></td></tr>`; document.getElementById('emp-pagination').innerHTML = ''; return; }
 
     tbody.innerHTML = result.data.map(e => `
       <tr>
-        <td><code>${e.employee_id}</code></td><td><strong>${e.first_name} ${e.last_name}</strong></td><td>${e.email || '-'}</td><td>${e.department || '-'}</td><td>${e.position || '-'}</td>
-        <td>${formatDate(e.hire_date)}</td><td>${formatCurrency(e.salary)}</td><td>${statusBadge(e.status)}</td>
+        <td data-col="employee_id"><code>${e.employee_id}</code></td><td data-col="first_name"><strong>${e.first_name} ${e.last_name}</strong></td><td data-col="email">${e.email || '-'}</td><td data-col="department">${e.department || '-'}</td><td data-col="position">${e.position || '-'}</td>
+        <td data-col="hire_date">${formatDate(e.hire_date)}</td><td data-col="salary">${formatCurrency(e.salary)}</td><td data-col="status">${statusBadge(e.status)}</td>
         <td><button class="btn-icon" onclick="window.appEditEmp(${e.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteEmp(${e.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
@@ -46,6 +96,7 @@ async function loadEmployees() {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadEmployees(); } };
     });
     refreshSortArrows(document.querySelector('#emp-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
+    applyColumnVisibility();
   } catch (err) { showToast(err.message, 'error'); }
 }
 

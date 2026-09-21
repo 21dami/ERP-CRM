@@ -8,8 +8,37 @@ let currentStatus = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
+const STORAGE_KEY = 'erp_users_hidden_columns';
+const COLUMNS = [
+  { key: 'username', label: 'Username' },
+  { key: 'full_name', label: 'Full Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'role', label: 'Role' },
+  { key: 'status', label: 'Status' },
+  { key: 'created_at', label: 'Created' }
+];
+
+function getHiddenColumns() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setHiddenColumns(cols) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+function applyColumnVisibility() {
+  const hidden = getHiddenColumns();
+  document.querySelectorAll('th[data-col], td[data-col]').forEach(el => {
+    el.classList.toggle('hidden', hidden.includes(el.dataset.col));
+  });
+  document.querySelectorAll('.column-dropdown-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.col);
+  });
+}
+
 export async function renderUsers() {
   const container = document.getElementById('content-area');
+  const hiddenCols = getHiddenColumns();
 
   container.innerHTML = `
     <div class="toolbar">
@@ -27,11 +56,15 @@ export async function renderUsers() {
         <option value="active" ${currentStatus === 'active' ? 'selected' : ''}>Active</option>
         <option value="inactive" ${currentStatus === 'inactive' ? 'selected' : ''}>Inactive</option>
       </select>
+      <div class="column-toggle-wrap">
+        <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
+        <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
+      </div>
       <button class="btn btn-primary" id="btn-add-user"><i class="fas fa-plus"></i> Add User</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container">
       <table>
-        <thead><tr><th data-sort="username">Username<span class="sort-arrow"></span></th><th data-sort="full_name">Full Name<span class="sort-arrow"></span></th><th data-sort="email">Email<span class="sort-arrow"></span></th><th data-sort="role">Role<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th data-sort="created_at">Created<span class="sort-arrow"></span></th><th>Actions</th></tr></thead>
+        <thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead>
         <tbody id="users-tbody"></tbody>
       </table>
     </div><div id="users-pagination"></div></div></div>`;
@@ -41,8 +74,23 @@ export async function renderUsers() {
   document.getElementById('user-role-filter').onchange = e => { currentRole = e.target.value; currentPage = 1; loadUsers(); };
   document.getElementById('user-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadUsers(); };
 
+  const colBtn = document.getElementById('btn-columns');
+  const colDropdown = document.getElementById('columns-dropdown');
+  colBtn.onclick = (e) => { e.stopPropagation(); colDropdown.classList.toggle('open'); };
+  document.addEventListener('click', () => colDropdown.classList.remove('open'));
+  colDropdown.onclick = (e) => e.stopPropagation();
+  colDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const hidden = getHiddenColumns();
+      if (cb.checked) setHiddenColumns(hidden.filter(k => k !== cb.dataset.col));
+      else { hidden.push(cb.dataset.col); setHiddenColumns(hidden); }
+      applyColumnVisibility();
+    };
+  });
+
   await loadUsers();
   makeSortable(document.querySelector('#users-tbody').closest('table').querySelector('thead'), () => currentSort, () => currentOrder, (col, order) => { currentSort = col; currentOrder = order; currentPage = 1; loadUsers(); });
+  applyColumnVisibility();
 }
 
 async function loadUsers() {
@@ -50,19 +98,19 @@ async function loadUsers() {
     const result = await api.getUsers({ search: currentSearch, role: currentRole, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('users-tbody');
     if (!result.data.length) {
-      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>No users found</p></div></td></tr>';
+      tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-users"></i><p>No users found</p></div></td></tr>`;
       document.getElementById('users-pagination').innerHTML = '';
       return;
     }
 
     tbody.innerHTML = result.data.map(u => `
       <tr>
-        <td><strong>${u.username}</strong></td>
-        <td>${u.full_name}</td>
-        <td>${u.email || '-'}</td>
-        <td>${statusBadge(u.role)}</td>
-        <td>${statusBadge(u.status)}</td>
-        <td>${formatDate(u.created_at)}</td>
+        <td data-col="username"><strong>${u.username}</strong></td>
+        <td data-col="full_name">${u.full_name}</td>
+        <td data-col="email">${u.email || '-'}</td>
+        <td data-col="role">${statusBadge(u.role)}</td>
+        <td data-col="status">${statusBadge(u.status)}</td>
+        <td data-col="created_at">${formatDate(u.created_at)}</td>
         <td>
           ${u.username !== 'admin' ? `<button class="btn-icon" onclick="window.appImpersonateUser(${u.id})" title="Impersonate" style="color:var(--primary)"><i class="fas fa-mask"></i></button>` : ''}
           <button class="btn-icon" onclick="window.appEditUser(${u.id})" title="Edit"><i class="fas fa-edit"></i></button>
@@ -75,6 +123,7 @@ async function loadUsers() {
       btn.onclick = () => { const p = parseInt(btn.dataset.page); if (p >= 1 && p <= result.pages) { currentPage = p; loadUsers(); } };
     });
     refreshSortArrows(document.querySelector('#users-tbody').closest('table').querySelector('thead'), currentSort, currentOrder);
+    applyColumnVisibility();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
