@@ -79,6 +79,14 @@ const ProductController = {
     }
   },
 
+  getUnits(req, res) {
+    try {
+      res.json(ProductModel.getUnits());
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch units' });
+    }
+  },
+
   getLowStock(req, res) {
     try {
       res.json(ProductModel.getLowStock());

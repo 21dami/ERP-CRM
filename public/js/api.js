@@ -72,6 +72,7 @@ class ApiClient {
   updateProduct(id, data) { return this.put(`/products/${id}`, data); }
   deleteProduct(id) { return this.delete(`/products/${id}`); }
   getCategories() { return this.get('/products/categories'); }
+  getUnits() { return this.get('/products/units'); }
   getLowStockProducts() { return this.get('/products/low-stock'); }
 
   // Orders
@@ -88,6 +89,7 @@ class ApiClient {
   updateInventoryQuantity(data) { return this.put('/inventory/update', data); }
   getLowStock() { return this.get('/inventory/low-stock'); }
   getInventoryStats() { return this.get('/inventory/stats'); }
+  getWarehouseLocations() { return this.get('/inventory/locations'); }
 
   // Employees
   getEmployees(params) { return this.get('/employees', params); }

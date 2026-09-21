@@ -8,6 +8,7 @@ router.use(authenticate);
 
 router.get('/', ProductController.getAll);
 router.get('/categories', ProductController.getCategories);
+router.get('/units', ProductController.getUnits);
 router.get('/low-stock', ProductController.getLowStock);
 router.get('/:id', ProductController.getById);
 router.post('/', authorize('admin', 'warehouse'), ProductController.create);

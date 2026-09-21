@@ -92,6 +92,10 @@ const ProductModel = {
     return db.prepare('SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category').all().map(r => r.category);
   },
 
+  getUnits() {
+    return db.prepare('SELECT DISTINCT unit FROM products WHERE unit IS NOT NULL ORDER BY unit').all().map(r => r.unit);
+  },
+
   count() {
     return db.prepare('SELECT COUNT(*) as count FROM products').get().count;
   },

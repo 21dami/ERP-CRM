@@ -90,6 +90,10 @@ const InventoryModel = {
       ORDER BY (i.quantity * 1.0 / p.min_stock) ASC`).all();
   },
 
+  getLocations() {
+    return db.prepare('SELECT DISTINCT warehouse_location FROM inventory WHERE warehouse_location IS NOT NULL ORDER BY warehouse_location').all().map(r => r.warehouse_location);
+  },
+
   getStats() {
     const total = db.prepare('SELECT SUM(quantity) as total FROM inventory').get().total || 0;
     const totalValue = db.prepare('SELECT SUM(i.quantity * p.unit_price) as value FROM inventory i JOIN products p ON i.product_id = p.id').get().value || 0;

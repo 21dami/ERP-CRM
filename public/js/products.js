@@ -20,7 +20,7 @@ export async function renderProducts() {
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th data-sort="sku">SKU<span class="sort-arrow"></span></th><th data-sort="name">Name<span class="sort-arrow"></span></th><th data-sort="category">Category<span class="sort-arrow"></span></th><th data-sort="unit_price">Price<span class="sort-arrow"></span></th><th data-sort="cost_price">Cost<span class="sort-arrow"></span></th><th data-sort="stock_quantity">Stock<span class="sort-arrow"></span></th><th data-sort="status">Status<span class="sort-arrow"></span></th><th>Actions</th></tr></thead><tbody id="products-tbody"></tbody></table></div><div id="products-pagination"></div></div></div>`;
 
-  document.getElementById('btn-add-product').onclick = () => openProductModal();
+  document.getElementById('btn-add-product').onclick = () => openProductModal().catch(err => showToast(err.message, 'error'));
   document.getElementById('product-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadProducts(); });
   document.getElementById('product-category-filter').onchange = e => { currentCategory = e.target.value; currentPage = 1; loadProducts(); };
 
@@ -49,8 +49,13 @@ async function loadProducts() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-function openProductModal(product = null) {
+async function openProductModal(product = null) {
   const isEdit = !!product;
+  let categories = [], units = [], locations = [];
+  try { [categories, units, locations] = await Promise.all([api.getCategories(), api.getUnits(), api.getWarehouseLocations()]); } catch(e) {}
+
+  const taxRates = [0, 5, 8, 8.5, 10, 15, 20, 25];
+
   showModal(isEdit ? 'Edit Product' : 'New Product', `
     <form id="product-form">
       <div class="form-row">
@@ -59,20 +64,20 @@ function openProductModal(product = null) {
       </div>
       <div class="form-group"><label>Description</label><textarea name="description">${product?.description || ''}</textarea></div>
       <div class="form-row">
-        <div class="form-group"><label>Category</label><input name="category" value="${product?.category || ''}"></div>
-        <div class="form-group"><label>Unit</label><input name="unit" value="${product?.unit || 'pcs'}"></div>
+        <div class="form-group"><label>Category</label><input name="category" value="${product?.category || ''}" list="category-list"><datalist id="category-list">${categories.map(c => `<option value="${c}">`).join('')}</datalist></div>
+        <div class="form-group"><label>Unit</label><input name="unit" value="${product?.unit || 'pcs'}" list="unit-list"><datalist id="unit-list">${units.map(u => `<option value="${u}">`).join('')}</datalist></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Unit Price *</label><input type="number" step="0.01" name="unit_price" value="${product?.unit_price || ''}" required></div>
         <div class="form-group"><label>Cost Price</label><input type="number" step="0.01" name="cost_price" value="${product?.cost_price || ''}"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Tax Rate (%)</label><input type="number" step="0.01" name="tax_rate" value="${product?.tax_rate || 0}"></div>
+        <div class="form-group"><label>Tax Rate (%)</label><input type="number" step="0.01" name="tax_rate" value="${product?.tax_rate || 0}" list="tax-list"><datalist id="tax-list">${taxRates.map(t => `<option value="${t}">`).join('')}</datalist></div>
         <div class="form-group"><label>Min Stock</label><input type="number" name="min_stock" value="${product?.min_stock || 0}"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Stock Quantity</label><input type="number" name="stock_quantity" value="${product?.stock_quantity || 0}"></div>
-        <div class="form-group"><label>Warehouse Location</label><input name="warehouse_location" value="${product?.warehouse_location || ''}"></div>
+        <div class="form-group"><label>Warehouse Location</label><input name="warehouse_location" value="${product?.warehouse_location || ''}" list="location-list"><datalist id="location-list">${locations.map(l => `<option value="${l}">`).join('')}</datalist></div>
       </div>
       <div class="form-group"><label>Status</label><select name="status"><option value="active" ${product?.status !== 'inactive' ? 'selected' : ''}>Active</option><option value="inactive" ${product?.status === 'inactive' ? 'selected' : ''}>Inactive</option></select></div>
     </form>`,
@@ -97,7 +102,7 @@ function openProductModal(product = null) {
 }
 
 window.appEditProduct = async (id) => {
-  try { const p = await api.getProduct(id); openProductModal(p); } catch (err) { showToast(err.message, 'error'); }
+  try { const p = await api.getProduct(id); await openProductModal(p); } catch (err) { showToast(err.message, 'error'); }
 };
 
 window.appDeleteProduct = async (id) => {

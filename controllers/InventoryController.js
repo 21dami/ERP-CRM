@@ -57,6 +57,14 @@ const InventoryController = {
     }
   },
 
+  getLocations(req, res) {
+    try {
+      res.json(InventoryModel.getLocations());
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch warehouse locations' });
+    }
+  },
+
   getStats(req, res) {
     try {
       res.json(InventoryModel.getStats());

@@ -8,6 +8,7 @@ router.use(authenticate);
 
 router.get('/', InventoryController.getAll);
 router.get('/low-stock', InventoryController.getLowStock);
+router.get('/locations', InventoryController.getLocations);
 router.get('/stats', InventoryController.getStats);
 router.get('/:productId', InventoryController.getByProduct);
 router.put('/adjust', authorize('admin', 'warehouse'), InventoryController.adjustStock);
