@@ -15,28 +15,35 @@ Professional ERP/CRM application built for small businesses. Manages clients, pr
 erp-app/
 ├── config/
 │   ├── database.js          # Database connection & schema
+│   ├── permissions.js       # Permission catalog + default roles
 │   ├── seed.js              # Seed demo data
 │   ├── migrate.js           # Migration runner
 │   └── migrations/
-│       └── 001_initial_schema.js
+│       ├── 001_initial_schema.js
+│       └── 002_roles_permissions.js
 ├── controllers/
-│   ├── AuthController.js    # Login, JWT, password
+│   ├── AuthController.js    # Login, JWT, password, permissions
 │   ├── ClientController.js  # Client CRUD
 │   ├── ProductController.js # Product CRUD
 │   ├── OrderController.js   # Order CRUD
 │   ├── InventoryController.js
 │   ├── EmployeeController.js
 │   ├── SalesController.js
+│   ├── UserController.js    # User CRUD & role assignment
+│   ├── RoleController.js    # Role & permission CRUD
+│   ├── PermissionController.js
 │   └── DashboardController.js
 ├── middleware/
-│   └── auth.js              # JWT auth + role authorization
+│   └── auth.js              # JWT auth + requirePermission
 ├── models/
 │   ├── Client.js
 │   ├── Product.js
 │   ├── Order.js
 │   ├── Inventory.js
 │   ├── Employee.js
-│   └── Sale.js
+│   ├── Sale.js
+│   ├── User.js
+│   └── Role.js              # Roles + role_permissions access
 ├── routes/
 │   ├── auth.js
 │   ├── clients.js
@@ -45,6 +52,9 @@ erp-app/
 │   ├── inventory.js
 │   ├── employees.js
 │   ├── sales.js
+│   ├── users.js
+│   ├── roles.js
+│   ├── permissions.js
 │   └── dashboard.js
 ├── public/
 │   ├── index.html
@@ -52,14 +62,16 @@ erp-app/
 │   └── js/
 │       ├── app.js           # Main SPA router
 │       ├── api.js           # API client
-│       ├── utils.js         # Helpers & UI components
+│       ├── utils.js         # Helpers, UI components, permission checks
 │       ├── dashboard.js
 │       ├── clients.js
 │       ├── products.js
 │       ├── orders.js
 │       ├── inventory.js
 │       ├── sales.js
-│       └── employees.js
+│       ├── employees.js
+│       ├── users.js
+│       └── roles.js         # Roles & Permissions admin section
 ├── data/                    # SQLite database (auto-created)
 ├── server.js                # Express server entry
 ├── .env
@@ -113,18 +125,35 @@ Open `http://localhost:3000` in your browser.
 - **Inventory** - Stock levels, adjustments, low stock alerts, warehouse locations
 - **Sales** - Point-of-sale with automatic inventory deduction
 - **Employees** - HR management with departments, positions, salaries
+- **Users** - User management with role assignment and impersonation
+- **Roles & Permissions** - Admin section to create roles and grant permissions per role
 
 ### Role-Based Permissions
 
-| Feature | Admin | Sales | HR | Accounting | Warehouse |
+Permissions are stored in the database (`roles` + `role_permissions` tables) and managed from the
+**Roles** section by an admin. Every API route and every sidebar item/button is checked against them.
+The matrix below shows what the seeded default roles can access out of the box — any of it can be
+changed per role, and custom roles can be created with any combination of the 31 permissions.
+
+| Module | Admin | Sales | HR | Accounting | Warehouse |
 |---------|-------|-------|-----|------------|-----------|
 | Dashboard | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Clients | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Products | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Orders | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Clients | ✅ | ✅ | ❌ | ✅ (read) | ❌ |
+| Products | ✅ | ✅ (read) | ❌ | ✅ (read) | ✅ |
+| Orders | ✅ | ✅ | ❌ | ✅ (read) | ✅ (read + status) |
 | Inventory | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Sales | ✅ | ✅ | ❌ | ✅ | ❌ |
 | Employees | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Users | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Roles & Permissions | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+Permissions are grouped as `<module>.<action>` (`clients.view`, `clients.create`, `clients.update`,
+`clients.delete`, plus `orders.update_status`, `users.impersonate`, `roles.*`, ...). Guards:
+
+- System roles (admin/sales/hr/accounting/warehouse) cannot be renamed or deleted
+- A role assigned to users cannot be deleted until the users are reassigned
+- Nobody can delete their own role, and nobody can strip their own role of `roles.view` / `roles.update`
+- A user's role can only be set to an existing role, and role changes apply immediately (no re-login)
 
 ### Security
 - JWT authentication with 24h expiry
@@ -137,9 +166,31 @@ Open `http://localhost:3000` in your browser.
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
+- `POST /api/auth/login` - Login (returns user + permissions)
+- `GET /api/auth/me` - Get current user + permissions
+- `GET /api/auth/permissions` - Get current user's permission list
 - `POST /api/auth/change-password` - Change password
+- `POST /api/auth/impersonate/:userId` - Impersonate a user (`users.impersonate`)
+
+### Users
+- `GET /api/users` - List (search, filter by role/status, paginate) (`users.view`)
+- `GET /api/users/count` - Count (`users.view`)
+- `GET /api/users/:id` - Get one (`users.view`)
+- `POST /api/users` - Create (`users.create`)
+- `PUT /api/users/:id` - Update, including role (`users.update`)
+- `DELETE /api/users/:id` - Delete (`users.delete`)
+
+### Roles
+- `GET /api/roles` - List with user/permission counts (`roles.view` or `users.view`)
+- `GET /api/roles/count` - Count (`roles.view` or `users.view`)
+- `GET /api/roles/:id` - Get one with its permission keys (`roles.view` or `users.view`)
+- `POST /api/roles` - Create a role (`roles.create`)
+- `PUT /api/roles/:id` - Update name/display name/description (`roles.update`)
+- `PUT /api/roles/:id/permissions` - Replace a role's permission list (`roles.update`)
+- `DELETE /api/roles/:id` - Delete an unused custom role (`roles.delete`)
+
+### Permissions
+- `GET /api/permissions` - Permission catalog grouped by module (`roles.view` or `users.view`)
 
 ### Clients
 - `GET /api/clients` - List (search, filter, paginate)

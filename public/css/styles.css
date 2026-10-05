@@ -577,6 +577,32 @@ tbody tr:hover { background: var(--hover-bg); }
 .modal-close:hover { color: var(--text); }
 .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
 .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
+.modal-lg { max-width: 760px; }
+
+/* Permissions editor */
+.perm-note {
+  font-size: 13px; color: var(--text-muted); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.perm-note-warning { color: var(--warning); }
+.perm-groups { display: flex; flex-direction: column; gap: 14px; }
+.perm-group { border: 1px solid var(--border); border-radius: var(--border-radius); }
+.perm-group-header {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  background: var(--hover-bg); border-bottom: 1px solid var(--border);
+  font-weight: 600; color: var(--text); font-size: 14px;
+}
+.perm-group-header > label { cursor: pointer; margin: 0; }
+.perm-group-toggle { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.perm-group-toggle input { width: auto; cursor: pointer; }
+.perm-group-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px 16px; padding: 12px 14px;
+}
+.perm-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+.perm-item input { width: auto; margin: 0; cursor: pointer; accent-color: var(--primary); }
+.perm-item input:disabled { cursor: not-allowed; }
+.perm-item:has(input:disabled) { color: var(--text-muted); }
 
 /* Form elements */
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }

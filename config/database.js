@@ -2,6 +2,7 @@ import initSqlJs from 'sql.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { DEFAULT_ROLES, DEFAULT_ROLE_PERMISSIONS } from './permissions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -118,10 +119,27 @@ function createTables() {
     password TEXT NOT NULL,
     full_name TEXT NOT NULL,
     email TEXT,
-    role TEXT NOT NULL CHECK(role IN ('admin','sales','hr','accounting','warehouse')),
+    role TEXT NOT NULL,
     status TEXT DEFAULT 'active' CHECK(status IN ('active','inactive')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    display_name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    is_system INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id INTEGER NOT NULL,
+    permission_key TEXT NOT NULL,
+    PRIMARY KEY (role_id, permission_key),
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS clients (
@@ -201,6 +219,7 @@ function createTables() {
     payment_method TEXT,
     shipping_address TEXT,
     notes TEXT,
+    stock_deducted INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -234,6 +253,7 @@ function createTables() {
     payment_method TEXT DEFAULT 'cash',
     payment_status TEXT DEFAULT 'paid' CHECK(payment_status IN ('pending','paid','partial','refunded')),
     notes TEXT,
+    stock_deducted INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id),
@@ -254,6 +274,63 @@ function createTables() {
     FOREIGN KEY (product_id) REFERENCES products(id)
   );
   `);
+
+  // Add columns introduced after the initial schema to existing databases
+  try {
+    dbWrapper.exec('ALTER TABLE orders ADD COLUMN stock_deducted INTEGER NOT NULL DEFAULT 0');
+  } catch (e) { /* column already exists */ }
+  try {
+    dbWrapper.exec('ALTER TABLE sales ADD COLUMN stock_deducted INTEGER NOT NULL DEFAULT 0');
+  } catch (e) { /* column already exists */ }
+
+  ensureDefaultRoles();
 }
+
+function sqlValue(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function ensureDefaultRoles() {
+  const statements = [];
+
+  for (const role of DEFAULT_ROLES) {
+    const existing = dbWrapper.prepare('SELECT id FROM roles WHERE name = ?').get(role.name);
+    if (existing) continue;
+
+    statements.push(
+      `INSERT INTO roles (name, display_name, description, is_system) VALUES ` +
+      `(${sqlValue(role.name)}, ${sqlValue(role.display_name)}, ${sqlValue(role.description)}, 1);`
+    );
+
+    for (const key of DEFAULT_ROLE_PERMISSIONS[role.name] || []) {
+      statements.push(
+        `INSERT OR IGNORE INTO role_permissions (role_id, permission_key) ` +
+        `SELECT id, ${sqlValue(key)} FROM roles WHERE name = ${sqlValue(role.name)};`
+      );
+    }
+  }
+
+  if (statements.length) dbWrapper.exec(statements.join('\n'));
+
+  // Backfill newly introduced permission keys into the default roles that default
+  // to them. A key counts as new only while no role holds it yet, so permissions
+  // an admin deliberately removed are never re-granted.
+  const held = new Set(dbWrapper.prepare('SELECT DISTINCT permission_key FROM role_permissions').all().map(r => r.permission_key));
+  const newKeys = new Set(Object.values(DEFAULT_ROLE_PERMISSIONS).flat().filter(k => !held.has(k)));
+  if (newKeys.size) {
+    const backfill = [];
+    for (const [roleName, keys] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+      for (const key of keys) {
+        if (!newKeys.has(key)) continue;
+        backfill.push(
+          `INSERT OR IGNORE INTO role_permissions (role_id, permission_key) ` +
+          `SELECT id, ${sqlValue(key)} FROM roles WHERE name = ${sqlValue(roleName)};`
+        );
+      }
+    }
+    if (backfill.length) dbWrapper.exec(backfill.join('\n'));
+  }
+}
+
 
 export default dbWrapper;

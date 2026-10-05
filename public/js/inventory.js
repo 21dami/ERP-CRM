@@ -49,7 +49,7 @@ export async function renderInventory() {
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-adjust-stock"><i class="fas fa-sliders-h"></i> Adjust Stock</button>
+      <button class="btn btn-primary" id="btn-adjust-stock" data-perm="inventory.update"><i class="fas fa-sliders-h"></i> Adjust Stock</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" ${c.key !== 'available' && c.key !== 'status' ? `data-sort="${c.key}"` : ''}>${c.label}${c.key !== 'available' && c.key !== 'status' ? '<span class="sort-arrow"></span>' : ''}</th>`).join('')}</tr></thead><tbody id="inv-tbody"></tbody></table></div><div id="inv-pagination"></div></div></div>`;
 

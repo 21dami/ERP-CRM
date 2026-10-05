@@ -8,8 +8,9 @@ export function showToast(message, type = 'success') {
   setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 3500);
 }
 
-export function showModal(title, bodyHtml, footerHtml = '') {
+export function showModal(title, bodyHtml, footerHtml = '', { large = false } = {}) {
   const overlay = document.getElementById('modal-overlay');
+  document.getElementById('modal').classList.toggle('modal-lg', large);
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-footer').innerHTML = footerHtml;
@@ -69,7 +70,8 @@ export function statusBadge(status) {
     active: 'success', inactive: 'danger', pending: 'warning', confirmed: 'info',
     processing: 'primary', shipped: 'info', delivered: 'success', cancelled: 'danger',
     paid: 'success', unpaid: 'danger', partial: 'warning', refunded: 'gray',
-    cash: 'success', credit_card: 'info', bank_transfer: 'primary'
+    cash: 'success', credit_card: 'info', bank_transfer: 'primary',
+    admin: 'primary', sales: 'info', hr: 'warning', accounting: 'success', warehouse: 'gray'
   };
   return `<span class="badge badge-${map[status] || 'gray'}">${status}</span>`;
 }
@@ -93,19 +95,33 @@ export function buildPagination(current, total, onPageChange) {
   return html;
 }
 
-export function getRolePermissions(role) {
-  const perms = {
-    admin: ['dashboard','clients','products','orders','inventory','sales','employees','users'],
-    sales: ['dashboard','clients','products','orders','sales'],
-    hr: ['dashboard','employees'],
-    accounting: ['dashboard','sales','orders'],
-    warehouse: ['dashboard','products','inventory']
-  };
-  return perms[role] || [];
+const NAV_PAGES = ['dashboard', 'clients', 'products', 'orders', 'inventory', 'sales', 'employees', 'users', 'roles'];
+
+export function getPermissions() {
+  try { return JSON.parse(localStorage.getItem('erp_permissions')) || []; } catch { return []; }
 }
 
-export function canAccess(page, role) {
-  return getRolePermissions(role).includes(page);
+export function setPermissions(permissions) {
+  localStorage.setItem('erp_permissions', JSON.stringify(permissions || []));
+}
+
+export function hasPermission(key) {
+  return getPermissions().includes(key);
+}
+
+export function getAccessiblePages() {
+  return NAV_PAGES.filter(page => hasPermission(`${page}.view`));
+}
+
+export function canAccess(page) {
+  return hasPermission(`${page}.view`);
+}
+
+export function applyPermissionVisibility(root = document) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('[data-perm]').forEach(el => {
+    el.style.display = hasPermission(el.dataset.perm) ? '' : 'none';
+  });
 }
 
 export function debounce(fn, delay = 300) {

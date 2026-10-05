@@ -37,6 +37,26 @@ const SalesController = {
     }
   },
 
+  refund(req, res) {
+    try {
+      const sale = SalesModel.refund(req.params.id);
+      res.json(sale);
+    } catch (err) {
+      const status = /not found/.test(err.message) ? 404 : 400;
+      res.status(status).json({ error: err.message });
+    }
+  },
+
+  delete(req, res) {
+    try {
+      const sale = SalesModel.delete(req.params.id);
+      res.json({ message: `Sale ${sale.sale_number} deleted successfully` });
+    } catch (err) {
+      const status = /not found/.test(err.message) ? 404 : 400;
+      res.status(status).json({ error: err.message });
+    }
+  },
+
   getStats(req, res) {
     try {
       const { start_date, end_date } = req.query;

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../config/database.js';
+import { getPermissionsForUser } from '../middleware/auth.js';
 
 const AuthController = {
   async login(req, res) {
@@ -38,7 +39,8 @@ const AuthController = {
           full_name: user.full_name,
           email: user.email,
           role: user.role
-        }
+        },
+        permissions: getPermissionsForUser(user)
       });
     } catch (err) {
       console.error('Login error:', err);
@@ -47,7 +49,11 @@ const AuthController = {
   },
 
   me(req, res) {
-    res.json({ user: req.user });
+    res.json({ user: req.user, permissions: getPermissionsForUser(req.user) });
+  },
+
+  permissions(req, res) {
+    res.json({ permissions: getPermissionsForUser(req.user) });
   },
 
   impersonate(req, res) {
@@ -65,6 +71,7 @@ const AuthController = {
       res.json({
         token,
         user: targetUser,
+        permissions: getPermissionsForUser(targetUser),
         impersonator: req.user
       });
     } catch (err) {

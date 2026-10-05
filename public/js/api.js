@@ -57,6 +57,7 @@ class ApiClient {
   // Auth
   login(username, password) { return this.post('/auth/login', { username, password }); }
   getMe() { return this.get('/auth/me'); }
+  getMyPermissions() { return this.get('/auth/permissions'); }
 
   // Clients
   getClients(params) { return this.get('/clients', params); }
@@ -104,6 +105,8 @@ class ApiClient {
   getSales(params) { return this.get('/sales', params); }
   getSale(id) { return this.get(`/sales/${id}`); }
   createSale(data) { return this.post('/sales', data); }
+  refundSale(id) { return this.patch(`/sales/${id}/refund`, {}); }
+  deleteSale(id) { return this.delete(`/sales/${id}`); }
   getSalesStats(params) { return this.get('/sales/stats', params); }
   getMonthlyRevenue(year) { return this.get('/sales/monthly-revenue', { year }); }
   getTopProducts(limit) { return this.get('/sales/top-products', { limit }); }
@@ -118,6 +121,15 @@ class ApiClient {
   updateUser(id, data) { return this.put(`/users/${id}`, data); }
   deleteUser(id) { return this.delete(`/users/${id}`); }
   impersonateUser(userId) { return this.post(`/auth/impersonate/${userId}`); }
+
+  // Roles & permissions
+  getRoles(params) { return this.get('/roles', params); }
+  getRole(id) { return this.get(`/roles/${id}`); }
+  createRole(data) { return this.post('/roles', data); }
+  updateRole(id, data) { return this.put(`/roles/${id}`, data); }
+  updateRolePermissions(id, permissions) { return this.put(`/roles/${id}/permissions`, { permissions }); }
+  deleteRole(id) { return this.delete(`/roles/${id}`); }
+  getPermissionCatalog() { return this.get('/permissions'); }
 }
 
 export const api = new ApiClient();

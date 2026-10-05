@@ -158,9 +158,10 @@ const seed = async () => {
 
   saveDatabase();
 
-  // Mark initial migration as applied if using migrations
+  // Mark initial migrations as applied if using migrations
   try {
     db.prepare("INSERT OR IGNORE INTO _migrations (name) VALUES ('001_initial_schema.js')").run();
+    db.prepare("INSERT OR IGNORE INTO _migrations (name) VALUES ('002_roles_permissions.js')").run();
     saveDatabase();
   } catch(e) {}
 

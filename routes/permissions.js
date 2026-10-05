@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import DashboardController from '../controllers/DashboardController.js';
+import PermissionController from '../controllers/PermissionController.js';
 import { authenticate, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get('/', requirePermission('dashboard.view'), DashboardController.getStats);
+router.get('/', requirePermission('roles.view', 'users.view'), PermissionController.catalog);
 
 export default router;

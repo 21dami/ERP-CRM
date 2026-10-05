@@ -42,7 +42,7 @@ const OrderController = {
       const order = OrderModel.update(req.params.id, req.body);
       res.json(order);
     } catch (err) {
-      res.status(500).json({ error: 'Failed to update order' });
+      res.status(500).json({ error: 'Failed to update order: ' + err.message });
     }
   },
 
@@ -54,7 +54,7 @@ const OrderController = {
       const order = OrderModel.update(req.params.id, { status: req.body.status });
       res.json(order);
     } catch (err) {
-      res.status(500).json({ error: 'Failed to update order status' });
+      res.status(500).json({ error: 'Failed to update order status: ' + err.message });
     }
   },
 
@@ -65,7 +65,7 @@ const OrderController = {
       OrderModel.delete(req.params.id);
       res.json({ message: 'Order deleted successfully' });
     } catch (err) {
-      res.status(500).json({ error: 'Failed to delete order' });
+      res.status(500).json({ error: 'Failed to delete order: ' + err.message });
     }
   }
 };

@@ -4,6 +4,7 @@ import { showToast, showModal, hideModal, formatCurrency, formatDate, statusBadg
 let currentPage = 1;
 let currentSearch = '';
 let currentStatus = '';
+let currentPayment = '';
 let currentSort = 'created_at';
 let currentOrder = 'DESC';
 
@@ -43,17 +44,19 @@ export async function renderOrders() {
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="order-search" placeholder="Search orders..." value="${currentSearch}"></div>
       <select class="filter-select" id="order-status-filter"><option value="">All Status</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
+      <select class="filter-select" id="order-payment-filter"><option value="">All Payments</option><option value="unpaid" ${currentPayment === 'unpaid' ? 'selected' : ''}>Unpaid</option><option value="partial" ${currentPayment === 'partial' ? 'selected' : ''}>Partial</option><option value="paid" ${currentPayment === 'paid' ? 'selected' : ''}>Paid</option><option value="refunded" ${currentPayment === 'refunded' ? 'selected' : ''}>Refunded</option></select>
       <div class="column-toggle-wrap">
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-add-order"><i class="fas fa-plus"></i> New Order</button>
+      <button class="btn btn-primary" id="btn-add-order" data-perm="orders.create"><i class="fas fa-plus"></i> New Order</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="orders-tbody"></tbody></table></div><div id="orders-pagination"></div></div></div>`;
 
   document.getElementById('btn-add-order').onclick = () => openOrderModal();
   document.getElementById('order-search').oninput = debounce(e => { currentSearch = e.target.value; currentPage = 1; loadOrders(); });
   document.getElementById('order-status-filter').onchange = e => { currentStatus = e.target.value; currentPage = 1; loadOrders(); };
+  document.getElementById('order-payment-filter').onchange = e => { currentPayment = e.target.value; currentPage = 1; loadOrders(); };
 
   const colBtn = document.getElementById('btn-columns');
   const colDropdown = document.getElementById('columns-dropdown');
@@ -76,7 +79,7 @@ export async function renderOrders() {
 
 async function loadOrders() {
   try {
-    const result = await api.getOrders({ search: currentSearch, status: currentStatus, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
+    const result = await api.getOrders({ search: currentSearch, status: currentStatus, payment_status: currentPayment, page: currentPage, limit: 15, sort: currentSort, order: currentOrder });
     const tbody = document.getElementById('orders-tbody');
     if (!result.data.length) { tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}"><div class="empty-state"><i class="fas fa-shopping-cart"></i><p>No orders found</p></div></td></tr>`; document.getElementById('orders-pagination').innerHTML = ''; return; }
 
@@ -84,7 +87,7 @@ async function loadOrders() {
       <tr>
         <td data-col="order_number"><strong>${o.order_number}</strong></td><td data-col="client_name">${o.client_name || '-'}</td><td data-col="order_date">${formatDate(o.order_date)}</td><td data-col="due_date">${formatDate(o.due_date)}</td><td data-col="total">${formatCurrency(o.total)}</td>
         <td data-col="status">${statusBadge(o.status)}</td><td data-col="payment_status">${statusBadge(o.payment_status)}</td>
-        <td><button class="btn-icon" onclick="window.appViewOrder(${o.id})" title="View"><i class="fas fa-eye"></i></button><button class="btn-icon" onclick="window.appEditOrderStatus(${o.id},'${o.status}')" title="Update Status"><i class="fas fa-sync"></i></button><button class="btn-icon" onclick="window.appDeleteOrder(${o.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
+        <td><button class="btn-icon" onclick="window.appViewOrder(${o.id})" title="View"><i class="fas fa-eye"></i></button><button class="btn-icon" onclick="window.appEditOrderStatus(${o.id},'${o.status}')" title="Update Status" data-perm="orders.update_status"><i class="fas fa-sync"></i></button><button class="btn-icon" onclick="window.appUpdatePayment(${o.id})" title="Update Payment" data-perm="orders.update" style="color:var(--success)"><i class="fas fa-dollar-sign"></i></button><button class="btn-icon" onclick="window.appDeleteOrder(${o.id})" title="Delete" data-perm="orders.delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
     document.getElementById('orders-pagination').innerHTML = buildPagination(result.page, result.pages);
@@ -117,10 +120,15 @@ async function openOrderModal() {
       <div id="order-items-container"></div>
       <button type="button" class="btn btn-sm btn-outline" id="add-order-item" style="margin-top:8px"><i class="fas fa-plus"></i> Add Item</button>
       <div class="form-row" style="margin-top:16px">
-        <div class="form-group"><label>Discount</label><input type="number" step="0.01" name="discount" value="0"></div>
+        <div class="form-group"><label>Discount</label><input type="number" step="0.01" min="0" name="discount" value="0"></div>
         <div class="form-group"><label>Notes</label><input name="notes"></div>
       </div>
-      <div style="text-align:right;font-size:18px;font-weight:700;margin-top:12px">Total: <span id="order-total-display">$0.00</span></div>
+      <div style="text-align:right;font-size:14px;margin-top:12px;color:var(--text-muted)">
+        <div>Subtotal: <span id="order-subtotal-display">$0.00</span></div>
+        <div>Tax: <span id="order-tax-display">$0.00</span></div>
+        <div>Discount: <span id="order-discount-display">$0.00</span></div>
+        <div style="font-size:18px;font-weight:700;margin-top:4px;color:var(--text)">Total: <span id="order-total-display">$0.00</span></div>
+      </div>
     </form>`,
     `<button class="btn btn-secondary" id="modal-cancel">Cancel</button><button class="btn btn-primary" id="modal-save">Create Order</button>`);
 
@@ -135,7 +143,7 @@ async function openOrderModal() {
     div.style.marginBottom = '8px';
     div.style.alignItems = 'end';
     div.innerHTML = `
-      <div class="form-group" style="flex:2"><label>Product</label><select class="order-product" data-idx="${idx}" required><option value="">Select</option>${products.map(p => `<option value="${p.id}" data-price="${p.unit_price}" data-tax="${p.tax_rate}">${p.name} (${p.sku}) - $${p.unit_price}</option>`).join('')}</select></div>
+      <div class="form-group" style="flex:2"><label>Product</label><select class="order-product" data-idx="${idx}" required><option value="">Select</option>${products.map(p => `<option value="${p.id}" data-price="${p.unit_price}" data-tax="${p.tax_rate}">${p.name} (${p.sku}) - $${p.unit_price} (Stock: ${p.stock_quantity ?? 0})</option>`).join('')}</select></div>
       <div class="form-group"><label>Qty</label><input type="number" class="order-qty" data-idx="${idx}" value="1" min="1"></div>
       <div class="form-group"><label>Price</label><input type="number" step="0.01" class="order-price" data-idx="${idx}"></div>
       <div class="form-group"><button type="button" class="btn btn-sm btn-danger remove-item"><i class="fas fa-trash"></i></button></div>`;
@@ -153,19 +161,32 @@ async function openOrderModal() {
   }
 
   function updateOrderTotal() {
-    let total = 0;
+    let subtotal = 0;
+    let tax = 0;
     document.querySelectorAll('.order-product').forEach(sel => {
       const row = sel.closest('.form-row');
       const qty = parseInt(row.querySelector('.order-qty').value) || 0;
       const price = parseFloat(row.querySelector('.order-price').value) || 0;
-      total += qty * price;
+      const opt = sel.options[sel.selectedIndex];
+      const taxRate = parseFloat(opt && opt.dataset.tax) || 0;
+      const line = qty * price;
+      subtotal += line;
+      tax += line * taxRate / 100;
     });
-    const discount = parseFloat(document.querySelector('#order-form [name="discount"]').value) || 0;
-    document.getElementById('order-total-display').textContent = formatCurrency(total - discount);
+    subtotal = Math.round(subtotal * 100) / 100;
+    tax = Math.round(tax * 100) / 100;
+    const discount = Math.max(0, parseFloat(document.querySelector('#order-form [name="discount"]').value) || 0);
+    const total = Math.max(0, Math.round((subtotal + tax - discount) * 100) / 100);
+    document.getElementById('order-subtotal-display').textContent = formatCurrency(subtotal);
+    document.getElementById('order-tax-display').textContent = formatCurrency(tax);
+    document.getElementById('order-discount-display').textContent = formatCurrency(discount);
+    document.getElementById('order-total-display').textContent = formatCurrency(total);
   }
 
   addOrderItem();
   document.getElementById('add-order-item').onclick = addOrderItem;
+  document.querySelector('#order-form [name="discount"]').oninput = updateOrderTotal;
+  updateOrderTotal();
   document.getElementById('modal-cancel').onclick = hideModal;
   document.getElementById('modal-save').onclick = async () => {
     const form = document.getElementById('order-form');
@@ -176,17 +197,20 @@ async function openOrderModal() {
       const productId = parseInt(sel.value);
       const qty = parseInt(row.querySelector('.order-qty').value) || 0;
       const price = parseFloat(row.querySelector('.order-price').value) || 0;
-      if (productId && qty > 0) items.push({ product_id: productId, quantity: qty, unit_price: price, total: qty * price });
+      const opt = sel.options[sel.selectedIndex];
+      const taxRate = parseFloat(opt && opt.dataset.tax) || 0;
+      if (productId && qty > 0) items.push({ product_id: productId, quantity: qty, unit_price: price, tax_rate: taxRate, total: Math.round(qty * price * 100) / 100 });
     });
     if (!fd.get('client_id')) { showToast('Please select a client', 'error'); return; }
     if (!items.length) { showToast('Please add at least one item', 'error'); return; }
 
-    let total = items.reduce((s, i) => s + i.total, 0);
-    const discount = parseFloat(fd.get('discount')) || 0;
-    total -= discount;
+    const subtotal = Math.round(items.reduce((s, i) => s + i.total, 0) * 100) / 100;
+    const taxAmount = Math.round(items.reduce((s, i) => s + i.total * (i.tax_rate || 0) / 100, 0) * 100) / 100;
+    const discount = Math.max(0, parseFloat(fd.get('discount')) || 0);
+    const total = Math.max(0, Math.round((subtotal + taxAmount - discount) * 100) / 100);
 
     try {
-      await api.createOrder({ client_id: parseInt(fd.get('client_id')), due_date: fd.get('due_date'), shipping_address: fd.get('shipping_address'), notes: fd.get('notes'), discount, total, items });
+      await api.createOrder({ client_id: parseInt(fd.get('client_id')), due_date: fd.get('due_date'), shipping_address: fd.get('shipping_address'), notes: fd.get('notes'), discount, subtotal, tax_amount: taxAmount, total, items });
       showToast('Order created'); hideModal(); loadOrders();
     } catch (err) { showToast(err.message, 'error'); }
   };
@@ -205,7 +229,12 @@ window.appViewOrder = async (id) => {
       </div>
       <table style="width:100%;margin-bottom:16px"><thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
       <tbody>${(o.items || []).map(i => `<tr><td>${i.product_name}</td><td>${i.quantity}</td><td>${formatCurrency(i.unit_price)}</td><td>${formatCurrency(i.total)}</td></tr>`).join('')}</tbody></table>
-      <div style="text-align:right;font-size:18px;font-weight:700">Total: ${formatCurrency(o.total)}</div>`,
+      <div style="text-align:right;font-size:14px;color:var(--text-muted)">
+        <div>Subtotal: ${formatCurrency(o.subtotal)}</div>
+        <div>Tax: ${formatCurrency(o.tax_amount)}</div>
+        <div>Discount: ${formatCurrency(o.discount)}</div>
+        <div style="font-size:18px;font-weight:700;margin-top:4px;color:var(--text)">Total: ${formatCurrency(o.total)}</div>
+      </div>`,
       `<button class="btn btn-secondary" id="modal-cancel">Close</button>`);
     document.getElementById('modal-cancel').onclick = hideModal;
   } catch (err) { showToast(err.message, 'error'); }
@@ -214,12 +243,50 @@ window.appViewOrder = async (id) => {
 window.appEditOrderStatus = async (id, currentStatus) => {
   const statuses = ['pending','confirmed','processing','shipped','delivered','cancelled'];
   showModal('Update Status', `
-    <form id="status-form"><div class="form-group"><label>Status</label><select name="status">${statuses.map(s => `<option value="${s}" ${s === currentStatus ? 'selected' : ''}>${s}</option>`).join('')}</select></div></form>`,
+    <form id="status-form"><div class="form-group"><label>Status</label><select name="status">${statuses.map(s => `<option value="${s}" ${s === currentStatus ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Confirmed, processing, shipped and delivered all deduct stock and record revenue (skipping confirmed is fine) · Cancelled returns stock</p></form>`,
     `<button class="btn btn-secondary" id="modal-cancel">Cancel</button><button class="btn btn-primary" id="modal-save">Update</button>`);
   document.getElementById('modal-cancel').onclick = hideModal;
   document.getElementById('modal-save').onclick = async () => {
     try { await api.updateOrderStatus(id, document.querySelector('#status-form select').value); showToast('Status updated'); hideModal(); loadOrders(); } catch (err) { showToast(err.message, 'error'); }
   };
+};
+
+window.appUpdatePayment = async (id) => {
+  try {
+    const o = await api.getOrder(id);
+    const label = v => String(v || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const statuses = ['unpaid', 'partial', 'paid', 'refunded'];
+    const methods = ['cash', 'credit_card', 'bank_transfer'];
+    if (o.payment_method && !methods.includes(o.payment_method)) methods.unshift(o.payment_method);
+
+    showModal(`Payment · ${o.order_number}`, `
+      <form id="payment-form">
+        <div class="form-row">
+          <div class="form-group"><label>Payment Status</label>
+            <select name="payment_status">${statuses.map(s => `<option value="${s}" ${s === o.payment_status ? 'selected' : ''}>${label(s)}</option>`).join('')}</select>
+          </div>
+          <div class="form-group"><label>Payment Method</label>
+            <select name="payment_method">${methods.map(m => `<option value="${m}" ${m === o.payment_method ? 'selected' : ''}>${label(m)}</option>`).join('')}</select>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px">${o.client_name || '-'} · currently ${label(o.payment_status)}</p>
+        <div style="text-align:right;font-size:18px;font-weight:700;margin-top:12px">Total: ${formatCurrency(o.total)}</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;text-align:right">Paid/Partial deducts stock and counts as revenue · Unpaid/Refunded returns stock · Stock &amp; revenue also update when the order is confirmed, processing, shipped or delivered</p>
+      </form>`,
+      `<button class="btn btn-secondary" id="modal-cancel">Cancel</button><button class="btn btn-primary" id="modal-save">Save Payment</button>`);
+
+    document.getElementById('modal-cancel').onclick = hideModal;
+    document.getElementById('modal-save').onclick = async () => {
+      const fd = new FormData(document.getElementById('payment-form'));
+      try {
+        await api.updateOrder(id, { payment_status: fd.get('payment_status'), payment_method: fd.get('payment_method') });
+        showToast('Payment updated');
+        hideModal();
+        loadOrders();
+      } catch (err) { showToast(err.message, 'error'); }
+    };
+  } catch (err) { showToast(err.message, 'error'); }
 };
 
 window.appDeleteOrder = async (id) => {

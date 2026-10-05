@@ -1,5 +1,5 @@
 import api from './api.js';
-import { showToast, getRolePermissions, canAccess, getLocale, setLocale, formatDateShort } from './utils.js';
+import { showToast, getAccessiblePages, canAccess, setPermissions, applyPermissionVisibility, getLocale, setLocale, formatDateShort } from './utils.js';
 import { renderDashboard } from './dashboard.js';
 import { renderClients } from './clients.js';
 import { renderProducts } from './products.js';
@@ -8,6 +8,7 @@ import { renderInventory } from './inventory.js';
 import { renderSales } from './sales.js';
 import { renderEmployees } from './employees.js';
 import { renderUsers } from './users.js';
+import { renderRoles } from './roles.js';
 
 const pageRenderers = {
   dashboard: renderDashboard,
@@ -18,6 +19,7 @@ const pageRenderers = {
   sales: renderSales,
   employees: renderEmployees,
   users: renderUsers,
+  roles: renderRoles,
 };
 
 const pageTitles = {
@@ -29,6 +31,7 @@ const pageTitles = {
   sales: 'Sales',
   employees: 'Employees',
   users: 'Users',
+  roles: 'Roles & Permissions',
 };
 
 let currentUser = null;
@@ -84,6 +87,7 @@ class App {
       try {
         const res = await api.getMe();
         currentUser = res.user;
+        setPermissions(res.permissions);
         localStorage.setItem('erp_user', JSON.stringify(currentUser));
 
         const impersonatorData = localStorage.getItem('erp_impersonator');
@@ -112,13 +116,19 @@ class App {
       item.onclick = (e) => {
         e.preventDefault();
         const page = item.dataset.page;
-        if (page && canAccess(page, currentUser?.role)) {
+        if (page && canAccess(page)) {
           this.navigateTo(page);
         } else {
           showToast('You do not have access to this section', 'error');
         }
       };
     });
+
+    const contentArea = document.getElementById('content-area');
+    new MutationObserver(() => applyPermissionVisibility(contentArea))
+      .observe(contentArea, { childList: true, subtree: true });
+
+    window.appPermissionsChanged = () => this.refreshPermissions();
 
     document.getElementById('sidebar-toggle').onclick = () => {
       document.getElementById('sidebar').classList.toggle('collapsed');
@@ -142,6 +152,7 @@ class App {
     window.addEventListener('impersonation-start', (e) => {
       isImpersonating = true;
       currentUser = e.detail.impersonated;
+      setPermissions(e.detail.permissions || []);
       this.showImpersonationBanner(e.detail.impersonated);
       this.showApp();
     });
@@ -164,6 +175,7 @@ class App {
       const result = await api.login(username, password);
       api.setToken(result.token);
       currentUser = result.user;
+      setPermissions(result.permissions);
       localStorage.setItem('erp_user', JSON.stringify(currentUser));
       this.showApp();
     } catch (err) {
@@ -178,6 +190,7 @@ class App {
     isImpersonating = false;
     localStorage.removeItem('erp_user');
     localStorage.removeItem('erp_impersonator');
+    setPermissions([]);
     this.hideImpersonationBanner();
     this.showLogin();
   }
@@ -208,6 +221,7 @@ class App {
     setTimeout(() => {
       api.getMe().then(res => {
         currentUser = res.user;
+        setPermissions(res.permissions);
         localStorage.setItem('erp_user', JSON.stringify(currentUser));
         this.showApp();
       }).catch(() => {
@@ -232,14 +246,31 @@ class App {
     document.getElementById('user-role').textContent = currentUser.role;
     document.getElementById('current-date').textContent = formatDateShort(new Date());
 
-    const perms = getRolePermissions(currentUser.role);
+    const pages = getAccessiblePages();
     document.querySelectorAll('.nav-item').forEach(item => {
-      const page = item.dataset.page;
-      item.style.display = perms.includes(page) ? 'flex' : 'none';
+      item.style.display = pages.includes(item.dataset.page) ? 'flex' : 'none';
     });
+    applyPermissionVisibility(document);
 
-    const defaultPage = perms[0] || 'dashboard';
+    const defaultPage = pages[0] || 'dashboard';
     this.navigateTo(defaultPage);
+  }
+
+  async refreshPermissions() {
+    try {
+      const res = await api.getMyPermissions();
+      setPermissions(res.permissions);
+    } catch (err) {
+      return;
+    }
+    const pages = getAccessiblePages();
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.style.display = pages.includes(item.dataset.page) ? 'flex' : 'none';
+    });
+    applyPermissionVisibility(document);
+    if (!pages.includes(currentPage)) {
+      this.navigateTo(pages[0] || 'dashboard');
+    }
   }
 
   navigateTo(page) {

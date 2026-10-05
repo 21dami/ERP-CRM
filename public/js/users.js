@@ -22,6 +22,22 @@ function getHiddenColumns() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
 }
 
+let roleOptionsCache = null;
+
+async function getRoleOptions() {
+  if (!roleOptionsCache) {
+    const result = await api.getRoles({ limit: 100, sort: 'name', order: 'ASC' });
+    roleOptionsCache = result.data;
+  }
+  return roleOptionsCache;
+}
+
+function roleSelectHtml(selected = '', { showKey = false } = {}) {
+  return (roleOptionsCache || []).map(r =>
+    `<option value="${r.name}" ${selected === r.name ? 'selected' : ''}>${r.display_name}${showKey ? ` (${r.name})` : ''}</option>`
+  ).join('');
+}
+
 function setHiddenColumns(cols) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
 }
@@ -40,16 +56,15 @@ export async function renderUsers() {
   const container = document.getElementById('content-area');
   const hiddenCols = getHiddenColumns();
 
+  roleOptionsCache = null;
+  try { await getRoleOptions(); } catch (err) { showToast(err.message, 'error'); }
+
   container.innerHTML = `
     <div class="toolbar">
       <div class="search-box"><i class="fas fa-search"></i><input type="text" id="user-search" placeholder="Search users..." value="${currentSearch}"></div>
       <select class="filter-select" id="user-role-filter">
         <option value="">All Roles</option>
-        <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
-        <option value="sales" ${currentRole === 'sales' ? 'selected' : ''}>Sales</option>
-        <option value="hr" ${currentRole === 'hr' ? 'selected' : ''}>HR</option>
-        <option value="accounting" ${currentRole === 'accounting' ? 'selected' : ''}>Accounting</option>
-        <option value="warehouse" ${currentRole === 'warehouse' ? 'selected' : ''}>Warehouse</option>
+        ${roleSelectHtml(currentRole)}
       </select>
       <select class="filter-select" id="user-status-filter">
         <option value="">All Status</option>
@@ -60,7 +75,7 @@ export async function renderUsers() {
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-add-user"><i class="fas fa-plus"></i> Add User</button>
+      <button class="btn btn-primary" id="btn-add-user" data-perm="users.create"><i class="fas fa-plus"></i> Add User</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container">
       <table>
@@ -112,9 +127,9 @@ async function loadUsers() {
         <td data-col="status">${statusBadge(u.status)}</td>
         <td data-col="created_at">${formatDate(u.created_at)}</td>
         <td>
-          ${u.username !== 'admin' ? `<button class="btn-icon" onclick="window.appImpersonateUser(${u.id})" title="Impersonate" style="color:var(--primary)"><i class="fas fa-mask"></i></button>` : ''}
-          <button class="btn-icon" onclick="window.appEditUser(${u.id})" title="Edit"><i class="fas fa-edit"></i></button>
-          ${u.username !== 'admin' ? `<button class="btn-icon" onclick="window.appDeleteUser(${u.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button>` : ''}
+          ${u.username !== 'admin' ? `<button class="btn-icon" onclick="window.appImpersonateUser(${u.id})" title="Impersonate" data-perm="users.impersonate" style="color:var(--primary)"><i class="fas fa-mask"></i></button>` : ''}
+          <button class="btn-icon" onclick="window.appEditUser(${u.id})" title="Edit" data-perm="users.update"><i class="fas fa-edit"></i></button>
+          ${u.username !== 'admin' ? `<button class="btn-icon" onclick="window.appDeleteUser(${u.id})" title="Delete" data-perm="users.delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button>` : ''}
         </td>
       </tr>`).join('');
 
@@ -142,11 +157,7 @@ function openUserModal(user = null) {
       <div class="form-row">
         <div class="form-group"><label>Role *</label>
           <select name="role" required>
-            <option value="admin" ${user?.role === 'admin' ? 'selected' : ''}>Admin</option>
-            <option value="sales" ${user?.role === 'sales' ? 'selected' : ''}>Sales</option>
-            <option value="hr" ${user?.role === 'hr' ? 'selected' : ''}>HR</option>
-            <option value="accounting" ${user?.role === 'accounting' ? 'selected' : ''}>Accounting</option>
-            <option value="warehouse" ${user?.role === 'warehouse' ? 'selected' : ''}>Warehouse</option>
+            ${roleSelectHtml(user?.role, { showKey: true })}
           </select>
         </div>
         <div class="form-group"><label>Status</label>
@@ -164,6 +175,11 @@ function openUserModal(user = null) {
     const fd = new FormData(document.getElementById('user-form'));
     const data = Object.fromEntries(fd);
     if (isEdit && !data.password) delete data.password;
+    if (isEdit && data.role && data.role !== user.role) {
+      const target = roleOptionsCache.find(r => r.name === data.role);
+      const label = target ? target.display_name : data.role;
+      if (!confirm(`Change ${user.full_name}'s role from "${user.role}" to "${label}"?\nTheir permissions will change immediately.`)) return;
+    }
     try {
       if (isEdit) { await api.updateUser(user.id, data); showToast('User updated'); }
       else { await api.createUser(data); showToast('User created'); }
@@ -191,7 +207,7 @@ window.appImpersonateUser = async (id) => {
     localStorage.setItem('erp_token', result.token);
     localStorage.setItem('erp_user', JSON.stringify(result.user));
     api.setToken(result.token);
-    window.dispatchEvent(new CustomEvent('impersonation-start', { detail: { impersonator: originalUser, impersonated: result.user } }));
+    window.dispatchEvent(new CustomEvent('impersonation-start', { detail: { impersonator: originalUser, impersonated: result.user, permissions: result.permissions } }));
     showToast(`Now impersonating ${result.user.full_name}`);
   } catch (err) { showToast(err.message, 'error'); }
 };

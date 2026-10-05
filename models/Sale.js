@@ -1,4 +1,6 @@
 import db from '../config/database.js';
+import InventoryModel from './Inventory.js';
+import OrderModel from './Order.js';
 
 const SalesModel = {
   findAll({ search, payment_status, client_id, start_date, end_date, page = 1, limit = 20, sort, order } = {}) {
@@ -67,23 +69,30 @@ const SalesModel = {
   },
 
   generateSaleNumber() {
-    const count = db.prepare("SELECT COUNT(*) as c FROM sales WHERE sale_number LIKE 'SAL-%'").get().c;
-    return `SAL-${String(count + 1).padStart(6, '0')}`;
+    const rows = db.prepare("SELECT sale_number FROM sales WHERE sale_number LIKE 'SAL-%'").all();
+    let max = 0;
+    for (const r of rows) {
+      const m = /SAL-(\d+)$/.exec(r.sale_number);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return `SAL-${String(max + 1).padStart(6, '0')}`;
   },
 
   create(data) {
     const saleNumber = this.generateSaleNumber();
+    const hasItems = !!(data.items && data.items.length);
     const r = db.prepare(`
-      INSERT INTO sales (sale_number, order_id, client_id, subtotal, tax_amount, discount, total, payment_method, payment_status, notes, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sales (sale_number, order_id, client_id, subtotal, tax_amount, discount, total, payment_method, payment_status, notes, stock_deducted, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       saleNumber, data.order_id || null, data.client_id || null,
       data.subtotal || 0, data.tax_amount || 0, data.discount || 0,
       data.total || 0, data.payment_method || 'cash',
-      data.payment_status || 'paid', data.notes || null, data.created_by || null
+      data.payment_status || 'paid', data.notes || null,
+      hasItems ? 1 : 0, data.created_by || null
     );
 
-    if (data.items && data.items.length) {
+    if (hasItems) {
       for (const item of data.items) {
         db.prepare(`INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, tax_rate, discount, total) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(r.lastInsertRowid, item.product_id, item.quantity, item.unit_price, item.tax_rate || 0, item.discount || 0, item.total);
         const stockResult = db.prepare('UPDATE inventory SET quantity = quantity - ? WHERE product_id = ? AND quantity >= ?').run(item.quantity, item.product_id, item.quantity);
@@ -96,6 +105,58 @@ const SalesModel = {
     return this.findById(r.lastInsertRowid);
   },
 
+  restockItems(items = []) {
+    for (const item of items) {
+      const inv = InventoryModel.findByProduct(item.product_id);
+      if (inv) InventoryModel.adjustStock(item.product_id, item.quantity);
+      else InventoryModel.updateQuantity(item.product_id, item.quantity);
+    }
+  },
+
+  // Refund: returns stock (exactly once, guarded by stock_deducted) and stops the
+  // sale from counting as revenue. Sales that come from an order are delegated to
+  // the order, which owns their stock and revenue.
+  refund(id) {
+    const sale = this.findById(id);
+    if (!sale) throw new Error('Sale not found');
+    if (sale.payment_status === 'refunded') return sale;
+
+    if (sale.order_id) {
+      const order = db.prepare('SELECT id FROM orders WHERE id = ?').get(sale.order_id);
+      if (order) {
+        OrderModel.update(sale.order_id, { payment_status: 'refunded' });
+        return this.findById(id);
+      }
+    }
+
+    if (sale.stock_deducted) {
+      this.restockItems(sale.items);
+      db.prepare('UPDATE sales SET stock_deducted = 0 WHERE id = ?').run(id);
+    }
+    db.prepare("UPDATE sales SET payment_status = 'refunded' WHERE id = ?").run(id);
+    return this.findById(id);
+  },
+
+  // Delete: removes the sale and returns stock if it has not been restocked yet.
+  // Sales generated from an order cannot be deleted here (that would desync the
+  // order) - refund or cancel the order instead.
+  delete(id) {
+    const sale = this.findById(id);
+    if (!sale) throw new Error('Sale not found');
+
+    if (sale.order_id) {
+      const order = db.prepare('SELECT order_number FROM orders WHERE id = ?').get(sale.order_id);
+      if (order) {
+        throw new Error(`This sale belongs to order ${order.order_number} - refund or cancel the order instead of deleting the sale`);
+      }
+    }
+
+    if (sale.stock_deducted) this.restockItems(sale.items);
+    db.prepare('DELETE FROM sale_items WHERE sale_id = ?').run(id);
+    db.prepare('DELETE FROM sales WHERE id = ?').run(id);
+    return sale;
+  },
+
   getStats({ start_date, end_date } = {}) {
     let dateFilter = '';
     const params = [];
@@ -103,12 +164,12 @@ const SalesModel = {
     if (end_date) { dateFilter += ' AND sale_date <= ?'; params.push(end_date); }
 
     const today = db.prepare(`SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
-      FROM sales WHERE DATE(sale_date) = DATE('now') ${dateFilter}`).get(...params);
+      FROM sales WHERE DATE(sale_date) = DATE('now') AND payment_status != 'refunded' ${dateFilter}`).get(...params);
     const thisMonth = db.prepare(`SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
-      FROM sales WHERE strftime('%Y-%m', sale_date) = strftime('%Y-%m', 'now') ${dateFilter}`).get(...params);
+      FROM sales WHERE strftime('%Y-%m', sale_date) = strftime('%Y-%m', 'now') AND payment_status != 'refunded' ${dateFilter}`).get(...params);
     const thisYear = db.prepare(`SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
-      FROM sales WHERE strftime('%Y', sale_date) = strftime('%Y', 'now') ${dateFilter}`).get(...params);
-    const total = db.prepare(`SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales WHERE 1=1 ${dateFilter}`).get(...params);
+      FROM sales WHERE strftime('%Y', sale_date) = strftime('%Y', 'now') AND payment_status != 'refunded' ${dateFilter}`).get(...params);
+    const total = db.prepare(`SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales WHERE payment_status != 'refunded' ${dateFilter}`).get(...params);
 
     return { today, thisMonth, thisYear, total };
   },
@@ -116,13 +177,15 @@ const SalesModel = {
   getMonthlyRevenue(year) {
     return db.prepare(`SELECT strftime('%m', sale_date) as month,
       COALESCE(SUM(total), 0) as revenue, COUNT(*) as count
-      FROM sales WHERE strftime('%Y', sale_date) = ?
+      FROM sales WHERE strftime('%Y', sale_date) = ? AND payment_status != 'refunded'
       GROUP BY strftime('%m', sale_date) ORDER BY month`).all(year || new Date().getFullYear());
   },
 
   getTopProducts(limit = 5) {
     return db.prepare(`SELECT p.name, p.sku, SUM(si.quantity) as total_sold, SUM(si.total) as total_revenue
-      FROM sale_items si JOIN products p ON si.product_id = p.id
+      FROM sale_items si JOIN sales s ON si.sale_id = s.id
+      JOIN products p ON si.product_id = p.id
+      WHERE s.payment_status != 'refunded'
       GROUP BY si.product_id ORDER BY total_revenue DESC LIMIT ?`).all(limit);
   },
 

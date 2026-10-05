@@ -51,7 +51,7 @@ export async function renderProducts() {
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-add-product"><i class="fas fa-plus"></i> Add Product</button>
+      <button class="btn btn-primary" id="btn-add-product" data-perm="products.create"><i class="fas fa-plus"></i> Add Product</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="products-tbody"></tbody></table></div><div id="products-pagination"></div></div></div>`;
 
@@ -91,7 +91,7 @@ async function loadProducts() {
         <td data-col="sku"><code>${p.sku}</code></td><td data-col="name"><strong>${p.name}</strong></td><td data-col="category">${p.category || '-'}</td><td data-col="unit_price">${formatCurrency(p.unit_price)}</td><td data-col="cost_price">${formatCurrency(p.cost_price)}</td>
         <td data-col="profit" style="color:${profit >= 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600">${formatCurrency(profit)}</td>
         <td data-col="stock_quantity"><span style="color:${p.stock_quantity <= p.min_stock ? 'var(--danger)' : 'var(--text)'};font-weight:600">${p.stock_quantity}</span></td><td data-col="status">${statusBadge(p.status)}</td>
-        <td><button class="btn-icon" onclick="window.appEditProduct(${p.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteProduct(${p.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
+        <td><button class="btn-icon" onclick="window.appEditProduct(${p.id})" title="Edit" data-perm="products.update"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteProduct(${p.id})" title="Delete" data-perm="products.delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`;
     }).join('');
 

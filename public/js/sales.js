@@ -45,7 +45,7 @@ export async function renderSales() {
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-new-sale"><i class="fas fa-plus"></i> New Sale</button>
+      <button class="btn btn-primary" id="btn-new-sale" data-perm="sales.create"><i class="fas fa-plus"></i> New Sale</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="sales-tbody"></tbody></table></div><div id="sales-pagination"></div></div></div>`;
 
@@ -81,7 +81,7 @@ async function loadSales() {
       <tr>
         <td data-col="sale_number"><strong>${s.sale_number}</strong></td><td data-col="client_name">${s.client_name || '-'}</td><td data-col="sale_date">${formatDate(s.sale_date)}</td><td data-col="total">${formatCurrency(s.total)}</td>
         <td data-col="payment_method">${statusBadge(s.payment_method || 'cash')}</td><td data-col="payment_status">${statusBadge(s.payment_status)}</td><td data-col="sold_by">${s.sold_by || '-'}</td>
-        <td><button class="btn-icon" onclick="window.appViewSale(${s.id})" title="View"><i class="fas fa-eye"></i></button></td>
+        <td><button class="btn-icon" onclick="window.appViewSale(${s.id})" title="View"><i class="fas fa-eye"></i></button>${s.payment_status !== 'refunded' ? `<button class="btn-icon" onclick="window.appRefundSale(${s.id})" title="Refund" data-perm="sales.refund" style="color:var(--warning)"><i class="fas fa-undo-alt"></i></button>` : ''}<button class="btn-icon" onclick="window.appDeleteSale(${s.id})" title="Delete" data-perm="sales.delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
     document.getElementById('sales-pagination').innerHTML = buildPagination(result.page, result.pages);
@@ -174,6 +174,16 @@ async function openSaleModal() {
     } catch (err) { showToast(err.message, 'error'); }
   };
 }
+
+window.appRefundSale = async (id) => {
+  if (!confirm('Refund this sale? Stock will be returned and it will stop counting as revenue.')) return;
+  try { await api.refundSale(id); showToast('Sale refunded'); loadSales(); } catch (err) { showToast(err.message, 'error'); }
+};
+
+window.appDeleteSale = async (id) => {
+  if (!confirm('Delete this sale? Stock will be returned unless it was already refunded.')) return;
+  try { await api.deleteSale(id); showToast('Sale deleted'); loadSales(); } catch (err) { showToast(err.message, 'error'); }
+};
 
 window.appViewSale = async (id) => {
   try {

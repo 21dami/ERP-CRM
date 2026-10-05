@@ -51,7 +51,7 @@ export async function renderEmployees() {
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-add-emp"><i class="fas fa-plus"></i> Add Employee</button>
+      <button class="btn btn-primary" id="btn-add-emp" data-perm="employees.create"><i class="fas fa-plus"></i> Add Employee</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="emp-tbody"></tbody></table></div><div id="emp-pagination"></div></div></div>`;
 
@@ -88,7 +88,7 @@ async function loadEmployees() {
       <tr>
         <td data-col="employee_id"><code>${e.employee_id}</code></td><td data-col="first_name"><strong>${e.first_name} ${e.last_name}</strong></td><td data-col="email">${e.email || '-'}</td><td data-col="department">${e.department || '-'}</td><td data-col="position">${e.position || '-'}</td>
         <td data-col="hire_date">${formatDate(e.hire_date)}</td><td data-col="salary">${formatCurrency(e.salary)}</td><td data-col="status">${statusBadge(e.status)}</td>
-        <td><button class="btn-icon" onclick="window.appEditEmp(${e.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteEmp(${e.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
+        <td><button class="btn-icon" onclick="window.appEditEmp(${e.id})" title="Edit" data-perm="employees.update"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteEmp(${e.id})" title="Delete" data-perm="employees.delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
     document.getElementById('emp-pagination').innerHTML = buildPagination(result.page, result.pages);

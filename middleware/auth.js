@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import db from '../config/database.js';
+import RoleModel from '../models/Role.js';
 
 export const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -21,14 +22,21 @@ export const authenticate = (req, res, next) => {
   }
 };
 
-export const authorize = (...roles) => {
+// Grants access when the user's role holds ANY of the given permissions.
+export const requirePermission = (...keys) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required.' });
     }
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions for this action.' });
+    const permissions = RoleModel.getPermissionsForRoleName(req.user.role);
+    if (keys.some(key => permissions.includes(key))) {
+      return next();
     }
-    next();
+    return res.status(403).json({ error: 'Insufficient permissions for this action.' });
   };
+};
+
+export const getPermissionsForUser = (user) => {
+  if (!user) return [];
+  return RoleModel.getPermissionsForRoleName(user.role);
 };

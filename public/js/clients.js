@@ -46,7 +46,7 @@ export async function renderClients() {
         <button class="column-toggle-btn" id="btn-columns"><i class="fas fa-columns"></i> Columns</button>
         <div class="column-dropdown" id="columns-dropdown">${COLUMNS.map(c => `<div class="column-dropdown-item"><input type="checkbox" id="col-${c.key}" data-col="${c.key}" ${!hiddenCols.includes(c.key) ? 'checked' : ''}><label for="col-${c.key}">${c.label}</label></div>`).join('')}</div>
       </div>
-      <button class="btn btn-primary" id="btn-add-client"><i class="fas fa-plus"></i> Add Client</button>
+      <button class="btn btn-primary" id="btn-add-client" data-perm="clients.create"><i class="fas fa-plus"></i> Add Client</button>
     </div>
     <div class="card"><div class="card-body"><div class="table-container"><table><thead><tr>${COLUMNS.map(c => `<th data-col="${c.key}" data-sort="${c.key}">${c.label}<span class="sort-arrow"></span></th>`).join('')}<th>Actions</th></tr></thead><tbody id="clients-tbody"></tbody></table></div><div id="clients-pagination"></div></div></div>`;
 
@@ -82,7 +82,7 @@ async function loadClients() {
     tbody.innerHTML = result.data.map(c => `
       <tr>
         <td data-col="name"><strong>${c.name}</strong></td><td data-col="company">${c.company || '-'}</td><td data-col="email">${c.email || '-'}</td><td data-col="phone">${c.phone || '-'}</td><td data-col="city">${c.city || '-'}</td><td data-col="status">${statusBadge(c.status)}</td>
-        <td><button class="btn-icon" onclick="window.appEditClient(${c.id})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteClient(${c.id})" title="Delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
+        <td><button class="btn-icon" onclick="window.appEditClient(${c.id})" title="Edit" data-perm="clients.update"><i class="fas fa-edit"></i></button><button class="btn-icon" onclick="window.appDeleteClient(${c.id})" title="Delete" data-perm="clients.delete" style="color:var(--danger)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
 
     document.getElementById('clients-pagination').innerHTML = buildPagination(result.page, result.pages);

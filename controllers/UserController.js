@@ -1,5 +1,12 @@
 import bcrypt from 'bcryptjs';
 import UserModel from '../models/User.js';
+import RoleModel from '../models/Role.js';
+
+function validateRole(role) {
+  if (role === undefined || role === null || role === '') return null;
+  if (!RoleModel.findByName(role)) return 'Selected role does not exist';
+  return null;
+}
 
 const UserController = {
   getAll(req, res) {
@@ -30,6 +37,8 @@ const UserController = {
       if (!username || !password || !full_name || !role) {
         return res.status(400).json({ error: 'Username, password, full name, and role are required' });
       }
+      const roleError = validateRole(role);
+      if (roleError) return res.status(400).json({ error: roleError });
       const existing = UserModel.findByUsername(username);
       if (existing) {
         return res.status(400).json({ error: 'Username already exists' });
@@ -48,6 +57,8 @@ const UserController = {
       if (!existing) return res.status(404).json({ error: 'User not found' });
 
       const data = { ...req.body };
+      const roleError = validateRole(data.role);
+      if (roleError) return res.status(400).json({ error: roleError });
       if (data.username && data.username !== existing.username) {
         const taken = UserModel.findByUsername(data.username);
         if (taken) return res.status(400).json({ error: 'Username already exists' });
